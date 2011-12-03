@@ -335,9 +335,12 @@ function update_core($from, $to) {
 	$mysql_version  = $wpdb->db_version();
 	$required_php_version = '5.2.4';
 	$required_mysql_version = '5.0';
-	$wp_version = '3.2.1';
+	$wp_version = '3.3';
 	$php_compat     = version_compare( $php_version, $required_php_version, '>=' );
-	$mysql_compat   = version_compare( $mysql_version, $required_mysql_version, '>=' ) || file_exists( WP_CONTENT_DIR . '/db.php' );
+	if ( file_exists( WP_CONTENT_DIR . '/db.php' ) && empty( $wpdb->is_mysql ) )
+		$mysql_compat = true;
+	else
+		$mysql_compat = version_compare( $mysql_version, $required_mysql_version, '>=' );
 
 	if ( !$mysql_compat || !$php_compat )
 		$wp_filesystem->delete($from, true);
@@ -384,7 +387,7 @@ function update_core($from, $to) {
 			$lang_dir = WP_CONTENT_DIR . '/languages';
 
 		if ( !@is_dir($lang_dir) && 0 === strpos($lang_dir, ABSPATH) ) { // Check the language directory exists first
-			$wp_filesystem->mkdir($to . str_replace($lang_dir, ABSPATH, ''), FS_CHMOD_DIR); // If it's within the ABSPATH we can handle it here, otherwise they're out of luck.
+			$wp_filesystem->mkdir($to . str_replace(ABSPATH, '', $lang_dir), FS_CHMOD_DIR); // If it's within the ABSPATH we can handle it here, otherwise they're out of luck.
 			clearstatcache(); // for FTP, Need to clear the stat cache
 		}
 
@@ -462,6 +465,11 @@ function update_core($from, $to) {
 
 	// Remove maintenance file, we're done.
 	$wp_filesystem->delete($maintenance_file);
+
+	// If we made it this far:
+	do_action( '_core_updated_successfully', $wp_version );
+
+	return $wp_version;
 }
 
 /**
@@ -519,4 +527,43 @@ function _copy_dir($from, $to, $skip_list = array() ) {
 	return true;
 }
 
-?>
+/**
+ * Redirect to the About WordPress page after a successful upgrade.
+ *
+ * This function is only needed when the existing install is older than 3.3.0.
+ *
+ * @since 3.3.0
+ *
+ */
+function _redirect_to_about_wordpress( $wp_version ) {
+	global $wp_version, $pagenow, $action;
+
+	if ( version_compare( $wp_version, '3.3', '>=' ) )
+		return;
+
+	// Ensure we only run this on the update-core.php page. wp_update_core() could be called in other contexts.
+	if ( 'update-core.php' != $pagenow )
+		return;
+
+ 	if ( 'do-core-upgrade' != $action && 'do-core-reinstall' != $action )
+ 		return;
+ 
+	// Load the updated default text localization domain for new strings
+	load_default_textdomain();
+
+	// See do_core_upgrade()
+	show_message( __('WordPress updated successfully') );
+	show_message( '<span class="hide-if-no-js">' . sprintf( __( 'Welcome to WordPress %1$s. You will be redirected to the About WordPress screen. If not, click <a href="%s">here</a>.' ), $wp_version, esc_url( admin_url( 'about.php?updated' ) ) ) . '</span>' );
+	show_message( '<span class="hide-if-js">' . sprintf( __( 'Welcome to WordPress %1$s. <a href="%2$s">Learn more</a>.' ), $wp_version, esc_url( admin_url( 'about.php?updated' ) ) ) . '</span>' );
+	echo '</div>';
+	?>
+<script type="text/javascript">
+window.location = '<?php echo admin_url( 'about.php?updated' ); ?>';
+</script>
+	<?php
+
+	// Include admin-footer.php and exit
+	include(ABSPATH . 'wp-admin/admin-footer.php');
+	exit();
+}
+add_action( '_core_updated_successfully', '_redirect_to_about_wordpress' );

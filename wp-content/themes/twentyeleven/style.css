@@ -504,7 +504,7 @@ a:hover {
 	border-top: 2px solid #bbb;
 	padding-bottom: 10px;
 	position: relative;
-	z-index: 2;
+	z-index: 9999;
 }
 #site-title {
 	margin-right: 270px;
@@ -614,6 +614,8 @@ a:hover {
 #access ul li:hover > ul {
 	display: block;
 }
+#access .current-menu-item > a,
+#access .current-menu-ancestor > a,
 #access .current_page_item > a,
 #access .current_page_ancestor > a {
 	font-weight: bold;
@@ -853,12 +855,15 @@ dl.gallery-item {
 	max-width: 97.5%; /* Fluid images for posts, comments, and widgets */
 }
 img[class*="align"],
-img[class*="wp-image-"] {
+img[class*="wp-image-"],
+img[class*="attachment-"] {
 	height: auto; /* Make sure images with WordPress-added height and width attributes are scaled correctly */
 }
-img.size-full {
+img.size-full,
+img.size-large {
 	max-width: 97.5%;
-	width: auto; /* Prevent stretching of full-size images with height and width attributes in IE8 */
+	width: auto; /* Prevent stretching of full-size and large-size images with height and width attributes in IE8 */
+	height: auto; /* Make sure images with WordPress-added height and width attributes are scaled correctly */
 }
 .entry-content img.wp-smiley {
 	border: none;
@@ -954,6 +959,13 @@ a:active img[class*="wp-image-"],
 .wp-caption a:hover img {/* ... including captioned images! */
 	background: #fff;
 	border-color: #ddd;
+}
+
+/* Make sure embeds and iframes fit their containers */
+embed,
+iframe,
+object {
+	max-width: 100%;
 }
 
 /* Password Protected Posts */
@@ -1703,7 +1715,6 @@ section.recent-posts .other-recent-posts li:after {
 	position: relative;
 	top: -0.3em;
 	text-align: right;
-	width: 100%;
 	z-index: 1;
 }
 #nav-single .nav-previous,
@@ -2347,11 +2358,6 @@ p.comment-form-comment {
 		float: none;
 		margin-right: 0;
 		width: auto;
-	}
-	/* Make sure embeds fit their containers */
-	embed,
-	object {
-		max-width: 100%;
 	}
 
 }
