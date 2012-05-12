@@ -5,7 +5,7 @@
  * Version: 1.0
  * Author: Pierre Schmitz
  * Author URI: https://pierre-schmitz.com/
-*/
+ */
 
 function wp_cache_add($key, $data, $group = '', $expire = 0) {
 	global $wp_object_cache;
@@ -111,34 +111,48 @@ class XCache_Object_Cache {
 		if (wp_suspend_cache_addition()) {
 			return false;
 		}
-
-		if (in_array($group, $this->non_persistent_groups)) {
-			if (isset($this->local_cache[$group][$key])) {
-				return false;
-			}
-		} elseif (xcache_isset($this->get_key($group, $key))) {
+		if (isset($this->local_cache[$group][$key])) {
+			return false;
+		}
+		if (!isset($this->non_persistent_groups[$group]) && xcache_isset($this->get_key($group, $key))) {
 			return false;
 		}
 
-		return $this->set($key, $data, $group, $expire);
+		if (is_object($data)) {
+			$this->local_cache[$group][$key] = clone $data;
+		} else {
+			$this->local_cache[$group][$key] = $data;
+		}
+
+		if (!isset($this->non_persistent_groups[$group])) {
+			return xcache_set($this->get_key($group, $key), serialize($data), $expire);
+		}
+
+		return true;
 	}
 
 	public function add_global_groups( $groups ) {
-		$groups = (array) $groups;
-
-		$this->global_groups = array_merge($this->global_groups, $groups);
-		$this->global_groups = array_unique($this->global_groups);
+		if (is_array($groups)) {
+			foreach ($groups as $group) {
+				$this->global_groups[$group] = 1;
+			}
+		} else {
+			$this->global_groups[$groups] = 1;
+		}
 	}
 
 	public function wp_cache_add_non_persistent_groups( $groups ) {
-		$groups = (array) $groups;
-
-		$this->non_persistent_groups = array_merge($this->non_persistent_groups, $groups);
-		$this->non_persistent_groups = array_unique($this->non_persistent_groups);
+		if (is_array($groups)) {
+			foreach ($groups as $group) {
+				$this->non_persistent_groups[$group] = 1;
+			}
+		} else {
+			$this->non_persistent_groups[$groups] = 1;
+		}
 	}
 
 	public function decr( $key, $offset = 1, $group = 'default' ) {
-		if (in_array($group, $this->non_persistent_groups)) {
+		if (isset($this->non_persistent_groups[$group])) {
 			if (isset($this->local_cache[$group][$key]) && $this->local_cache[$group][$key] - $offset >= 0) {
 				$this->local_cache[$group][$key] -= $offset;
 			} else {
@@ -151,12 +165,11 @@ class XCache_Object_Cache {
 	}
 
 	public function delete($key, $group = 'default', $force = false) {
-		if (in_array($group, $this->non_persistent_groups)) {
-			unset($this->local_cache[$group][$key]);
-			return true;
-		} else {
+		unset($this->local_cache[$group][$key]);
+		if (!isset($this->non_persistent_groups[$group])) {
 			return xcache_unset($this->get_key($group, $key));
 		}
+		return true;
 	}
 
 	public function flush() {
@@ -165,23 +178,29 @@ class XCache_Object_Cache {
 	}
 
 	public function get( $key, $group = 'default', $force = false) {
-		if (in_array($group, $this->non_persistent_groups)) {
-			if (isset($this->local_cache[$group][$key])) {
-				if (is_object($this->local_cache[$group][$key])) {
-					return clone $this->local_cache[$group][$key];
-				} else {
-					return $this->local_cache[$group][$key];
-				}
+		if (isset($this->local_cache[$group][$key])) {
+			if (is_object($this->local_cache[$group][$key])) {
+				return clone $this->local_cache[$group][$key];
 			} else {
-				return false;
+				return $this->local_cache[$group][$key];
 			}
+		} elseif (isset($this->non_persistent_groups[$group])) {
+			return false;
 		} else {
-			return unserialize(xcache_get($this->get_key($group, $key)));
+			$value = unserialize(xcache_get($this->get_key($group, $key)));
+			if ($value !== false) {
+				if (is_object($value)) {
+					$this->local_cache[$group][$key] = clone $value;
+				} else {
+					$this->local_cache[$group][$key] = $value;
+				}
+			}
+			return $value;
 		}
 	}
 
 	public function incr( $key, $offset = 1, $group = 'default' ) {
-		if (in_array($group, $this->non_persistent_groups)) {
+		if (isset($this->non_persistent_groups[$group])) {
 			if (isset($this->local_cache[$group][$key]) && $this->local_cache[$group][$key] + $offset >= 0) {
 				$this->local_cache[$group][$key] += $offset;
 			} else {
@@ -194,21 +213,24 @@ class XCache_Object_Cache {
 	}
 
 	public function replace($key, $data, $group = 'default', $expire = '') {
-		if (in_array($group, $this->non_persistent_groups) && isset($this->local_cache[$group][$key])) {
-			if (is_object($data)) {
-				$this->local_cache[$group][$key] = clone $data;
-			} else {
-				$this->local_cache[$group][$key] = $data;
+		if (isset($this->non_persistent_groups[$group])) {
+			if (!isset($this->local_cache[$group][$key])) {
+				return false;
 			}
-			return true;
 		} else {
-			return false;
+			if (!isset($this->local_cache[$group][$key]) && !xcache_isset($this->get_key($group, $key))) {
+				return false;
+			}
+			xcache_set($this->get_key($group, $key), serialize($data), $expire);
 		}
-		if (xcache_isset($this->get_key($group, $key))) {
-			return xcache_set($this->get_key($group, $key), serialize($data), $expire);
+
+		if (is_object($data)) {
+			$this->local_cache[$group][$key] = clone $data;
 		} else {
-			return false;
+			$this->local_cache[$group][$key] = $data;
 		}
+
+		return true;
 	}
 
 	public function reset() {
@@ -217,16 +239,17 @@ class XCache_Object_Cache {
 	}
 
 	public function set($key, $data, $group = 'default', $expire = '') {
-		if (in_array($group, $this->non_persistent_groups)) {
-			if (is_object($data)) {
-				$this->local_cache[$group][$key] = clone $data;
-			} else {
-				$this->local_cache[$group][$key] = $data;
-			}
-			return true;
+		if (is_object($data)) {
+			$this->local_cache[$group][$key] = clone $data;
 		} else {
+			$this->local_cache[$group][$key] = $data;
+		}
+
+		if (!isset($this->non_persistent_groups[$group])) {
 			return xcache_set($this->get_key($group, $key), serialize($data), $expire);
 		}
+
+		return true;
 	}
 
 	public function stats() {
