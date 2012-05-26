@@ -108,7 +108,7 @@ class XCache_Object_Cache {
 	}
 
 	public function add( $key, $data, $group = 'default', $expire = '' ) {
-		if (wp_suspend_cache_addition()) {
+		if (function_exists('wp_suspend_cache_addition') && wp_suspend_cache_addition()) {
 			return false;
 		}
 		if (isset($this->local_cache[$group][$key])) {
@@ -234,8 +234,7 @@ class XCache_Object_Cache {
 	}
 
 	public function reset() {
-		// TODO: only remove non-global groups
-		$this->flush();
+		// TODO: remove non-global groups
 	}
 
 	public function set($key, $data, $group = 'default', $expire = '') {
