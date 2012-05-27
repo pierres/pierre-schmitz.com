@@ -51,17 +51,17 @@ if ( $_POST ) {
 	if ( is_email( $_POST['admin_email'] ) )
 		update_site_option( 'admin_email', $_POST['admin_email'] );
 
-	$illegal_names = split( ' ', $_POST['illegal_names'] );
+	$illegal_names = explode( ' ', $_POST['illegal_names'] );
 	foreach ( (array) $illegal_names as $name ) {
 		$name = trim( $name );
 		if ( $name != '' )
 			$names[] = trim( $name );
-		}
+	}
 	update_site_option( 'illegal_names', $names );
 
 	if ( $_POST['limited_email_domains'] != '' ) {
 		$limited_email_domains = str_replace( ' ', "\n", $_POST['limited_email_domains'] );
-		$limited_email_domains = split( "\n", stripslashes( $limited_email_domains ) );
+		$limited_email_domains = explode( "\n", stripslashes( $limited_email_domains ) );
 		$limited_email = array();
 		foreach ( (array) $limited_email_domains as $domain ) {
 			$domain = trim( $domain );
@@ -70,11 +70,11 @@ if ( $_POST ) {
 		}
 		update_site_option( 'limited_email_domains', $limited_email );
 	} else {
-			update_site_option( 'limited_email_domains', '' );
+		update_site_option( 'limited_email_domains', '' );
 	}
 
 	if ( $_POST['banned_email_domains'] != '' ) {
-		$banned_email_domains = split( "\n", stripslashes( $_POST['banned_email_domains'] ) );
+		$banned_email_domains = explode( "\n", stripslashes( $_POST['banned_email_domains'] ) );
 		$banned = array();
 		foreach ( (array) $banned_email_domains as $domain ) {
 			$domain = trim( $domain );
@@ -125,7 +125,7 @@ if ( isset( $_GET['updated'] ) ) {
 				<td>
 					<input name="site_name" type="text" id="site_name" class="regular-text" value="<?php echo esc_attr( $current_site->site_name ) ?>" />
 					<br />
-					<?php _e( 'What you would like to call this website.' ) ?>
+					<?php _e( 'What you would like to call this network.' ) ?>
 				</td>
 			</tr>
 
@@ -278,7 +278,7 @@ if ( isset( $_GET['updated'] ) ) {
 			<tr valign="top">
 				<th scope="row"><?php _e( 'Site upload space' ) ?></th>
 				<td>
-				<label><input type="checkbox" id="upload_space_check_disabled" name="upload_space_check_disabled" value="0"<?php checked( get_site_option( 'upload_space_check_disabled' ), 0 ) ?>/> <?php printf( __( 'Limit total size of files uploaded to %s MB' ), '</label><label><input name="blog_upload_space" type="text" id="blog_upload_space" value="' . esc_attr( get_site_option('blog_upload_space', 10) ) . '" size="3" />' ); ?></label><br />
+				<label><input type="checkbox" id="upload_space_check_disabled" name="upload_space_check_disabled" value="0"<?php checked( get_site_option( 'upload_space_check_disabled' ), 0 ) ?>/> <?php printf( __( 'Limit total size of files uploaded to %s MB' ), '</label><label><input name="blog_upload_space" type="number" min="0" style="width: 100px" id="blog_upload_space" value="' . esc_attr( get_site_option('blog_upload_space', 100) ) . '" />' ); ?></label><br />
 				</td>
 			</tr>
 
@@ -289,7 +289,7 @@ if ( isset( $_GET['updated'] ) ) {
 
 			<tr valign="top">
 				<th scope="row"><label for="fileupload_maxk"><?php _e( 'Max upload file size' ) ?></label></th>
-				<td><?php printf( _x( '%s KB', 'File size in kilobytes' ), '<input name="fileupload_maxk" type="text" id="fileupload_maxk" value="' . esc_attr( get_site_option( 'fileupload_maxk', 300 ) ) . '" size="5" />' ); ?></td>
+				<td><?php printf( _x( '%s KB', 'File size in kilobytes' ), '<input name="fileupload_maxk" type="number" min="0" style="width: 100px" id="fileupload_maxk" value="' . esc_attr( get_site_option( 'fileupload_maxk', 300 ) ) . '" />' ); ?></td>
 			</tr>
 		</table>
 
@@ -322,7 +322,7 @@ if ( isset( $_GET['updated'] ) ) {
 			$menu_perms = get_site_option( 'menu_items' );
 			$menu_items = apply_filters( 'mu_menu_items', array( 'plugins' => __( 'Plugins' ) ) );
 			foreach ( (array) $menu_items as $key => $val ) {
-				echo "<label><input type='checkbox' name='menu_items[" . $key . "]' value='1'" .  ( isset( $menu_perms[$key] ) ? checked( $menu_perms[$key], '1', false ) : '' ) . " /> " . esc_html( $val ) . "</label><br/>";
+				echo "<label><input type='checkbox' name='menu_items[" . $key . "]' value='1'" . ( isset( $menu_perms[$key] ) ? checked( $menu_perms[$key], '1', false ) : '' ) . " /> " . esc_html( $val ) . "</label><br/>";
 			}
 			?>
 				</td>

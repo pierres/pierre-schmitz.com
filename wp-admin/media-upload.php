@@ -22,6 +22,7 @@ wp_enqueue_script('plupload-handlers');
 wp_enqueue_script('image-edit');
 wp_enqueue_script('set-post-thumbnail' );
 wp_enqueue_style('imgareaselect');
+wp_enqueue_script( 'media-gallery' );
 
 @header('Content-Type: ' . get_option('html_type') . '; charset=' . get_option('blog_charset'));
 
@@ -31,7 +32,7 @@ $post_id = isset($post_id)? (int) $post_id : 0;
 
 // Require an ID for the edit screen
 if ( isset($action) && $action == 'edit' && !$ID )
-	wp_die(__("You are not allowed to be here"));
+	wp_die( __( 'Cheatin&#8217; uh?' ) );
 
 if ( isset($_GET['inline']) ) {
 	$errors = array();
@@ -67,8 +68,8 @@ if ( isset($_GET['inline']) ) {
 		'<p>' . __('You can upload media files here without creating a post first. This allows you to upload files to use with posts and pages later and/or to get a web link for a particular file that you can share. There are three options for uploading files:') . '</p>' .
 		'<ul>' .
 			'<li>' . __('<strong>Drag and drop</strong> your files into the area below. Multiple files are allowed.') . '</li>' .
-			'<li>' . __('<strong>Select Files</strong> will open the multi-file uploader, or you can use the <strong>Browser Uploader</strong>.') . '</li>' .
 			'<li>' . __('Clicking <strong>Select Files</strong> opens a navigation window showing you files in your operating system. Selecting <strong>Open</strong> after clicking on the file you want activates a progress bar on the uploader screen.') . '</li>' .
+			'<li>' . __('Revert to the <strong>Browser Uploader</strong> by clicking the link below the drag and drop box.') . '</li>' .
 		'</ul>' .
 		'<p>' . __('Basic image editing is available after upload is complete. Make sure you click Save before leaving this screen.') . '</p>'
 	) );
@@ -136,4 +137,3 @@ if ( isset($_GET['inline']) ) {
 	else
 		do_action("media_upload_$tab");
 }
-?>
