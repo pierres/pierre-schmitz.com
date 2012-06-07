@@ -1102,9 +1102,14 @@ function background_color() {
  * @access protected
  */
 function _custom_background_cb() {
+	// $background is the saved custom image, or the default image.
 	$background = get_background_image();
-	$color = get_background_color();
-	if ( ! $background && ! $color )
+
+	// $color is the saved custom color.
+	// A default has to be specified in style.css. It will not be printed here.
+	$color = get_theme_mod( 'background_color' );
+
+	if ( ! $background && ! $color && ! get_theme_support( 'custom-background', 'default-image' ) )
 		return;
 
 	$style = $color ? "background-color: #$color;" : '';
@@ -1128,6 +1133,10 @@ function _custom_background_cb() {
 		$attachment = " background-attachment: $attachment;";
 
 		$style .= $image . $repeat . $position . $attachment;
+	} elseif ( get_theme_support( 'custom-background', 'default-image' ) ) {
+		// If there is not a $background, but there is a default, then the default was
+		// removed and an empty value was saved. Remove it:
+		$style .= " background-image: none;";
 	}
 ?>
 <style type="text/css" id="custom-background-css">
@@ -1569,13 +1578,14 @@ function check_theme_switched() {
 /**
  * Includes and instantiates the WP_Customize_Manager class.
  *
- * Fires when ?customize=on.
+ * Fires when ?wp_customize=on or on wp-admin/customize.php.
  *
  * @since 3.4.0
  */
 function _wp_customize_include() {
-	// Load on themes.php or ?customize=on
-	if ( ! ( ( isset( $_REQUEST['customize'] ) && 'on' == $_REQUEST['customize'] ) || 'customize.php' == basename( $_SERVER['PHP_SELF'] ) ) )
+	if ( ! ( ( isset( $_REQUEST['wp_customize'] ) && 'on' == $_REQUEST['wp_customize'] )
+		|| ( is_admin() && 'customize.php' == basename( $_SERVER['PHP_SELF'] ) )
+	) )
 		return;
 
 	require( ABSPATH . WPINC . '/class-wp-customize-manager.php' );
@@ -1596,9 +1606,15 @@ function _wp_customize_loader_settings() {
 	$home_origin  = parse_url( home_url() );
 	$cross_domain = ( strtolower( $admin_origin[ 'host' ] ) != strtolower( $home_origin[ 'host' ] ) );
 
+	$browser = array(
+		'mobile' => wp_is_mobile(),
+		'ios'    => wp_is_mobile() && preg_match( '/iPad|iPod|iPhone/', $_SERVER['HTTP_USER_AGENT'] ),
+	);
+
 	$settings = array(
 		'url'           => esc_url( admin_url( 'customize.php' ) ),
 		'isCrossDomain' => $cross_domain,
+		'browser'       => $browser,
 	);
 
 	$script = 'var _wpCustomizeLoaderSettings = ' . json_encode( $settings ) . ';';

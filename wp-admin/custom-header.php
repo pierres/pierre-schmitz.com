@@ -94,8 +94,11 @@ class Custom_Image_Header {
 		if ( $this->admin_header_callback )
 			add_action("admin_head-$page", $this->admin_header_callback, 51);
 
-		add_filter( 'attachment_fields_to_edit', array( $this, 'attachment_fields_to_edit' ), 10, 2 );
-		add_filter( 'media_upload_tabs', array( $this, 'filter_upload_tabs' ) );
+		if ( isset( $_REQUEST['context'] ) && $_REQUEST['context'] == 'custom-header' ) {
+			add_filter( 'attachment_fields_to_edit', array( $this, 'attachment_fields_to_edit' ), 10, 2 );
+			add_filter( 'media_upload_tabs', array( $this, 'filter_upload_tabs' ) );
+			add_filter( 'media_upload_mime_type_links', '__return_empty_array' );
+		}
 	}
 
 	/**
@@ -116,7 +119,7 @@ class Custom_Image_Header {
 			'id'      => 'set-header-image',
 			'title'   => __('Header Image'),
 			'content' =>
-				'<p>' . __( 'You can set a custom image header for your site. Simply upload the image and crop it, and the new header will go live immediately. Alternatively, you can use an image that has already been uploaded to your Media Library by clicking the &#8220;Choose from image library&#8221; link.' ) . '</p>' .
+				'<p>' . __( 'You can set a custom image header for your site. Simply upload the image and crop it, and the new header will go live immediately. Alternatively, you can use an image that has already been uploaded to your Media Library by clicking the &#8220;Choose Image&#8221; button.' ) . '</p>' .
 				'<p>' . __( 'Some themes come with additional header images bundled. If you see multiple images displayed, select the one you&#8217;d like and click the &#8220;Save Changes&#8221; button.' ) . '</p>' .
 				'<p>' . __( 'If your theme has more than one default header image, or you have uploaded more than one custom header image, you have the option of having WordPress display a randomly different image on each page of your site. Click the &#8220;Random&#8221; radio button next to the Uploaded Images or Default Images section to enable this feature.') . '</p>' .
 				'<p>' . __( 'If you don&#8217;t want a header image to be displayed on your site at all, click the &#8220;Remove Header Image&#8221; button at the bottom of the Header Image section of this page. If you want to re-enable the header image later, you just have to select one of the other image options and click &#8220;Save Changes&#8221;.') . '</p>'
@@ -637,7 +640,8 @@ var farbtastic;
 </tr>
 	<?php endif;
 
-	if ( current_theme_supports( 'custom-header', 'default-image' ) ) : ?>
+	$default_image = get_theme_support( 'custom-header', 'default-image' );
+	if ( $default_image && get_header_image() != $default_image ) : ?>
 <tr valign="top">
 <th scope="row"><?php _e( 'Reset Image' ); ?></th>
 <td>
@@ -791,10 +795,11 @@ wp_nonce_field( 'custom-header-options', '_wpnonce-custom-header-options' ); ?>
 	<?php } ?>
 	<?php wp_nonce_field( 'custom-header-crop-image' ) ?>
 
-	<p class="submit"><?php
-	submit_button( __( 'Crop and Publish' ), 'primary', 'submit', false );
+	<p class="submit">
+	<?php submit_button( __( 'Crop and Publish' ), 'primary', 'submit', false ); ?>
+	<?php
 	if ( isset( $oitar ) && 1 == $oitar )
-		submit_button( __( 'Skip Cropping, Use Image as Is' ), 'primary', 'skip-cropping', false );
+		submit_button( __( 'Skip Cropping, Publish Image as Is' ), 'secondary', 'skip-cropping', false );
 	?>
 	</p>
 </form>
@@ -803,6 +808,11 @@ wp_nonce_field( 'custom-header-options', '_wpnonce-custom-header-options' ); ?>
 	}
 
 
+	/**
+	 * Upload the file to be cropped in the second step.
+	 *
+	 * @since 3.4.0
+	 */
 	function step_2_manage_upload() {
 		$overrides = array('test_form' => false);
 		$file = wp_handle_upload($_FILES['import'], $overrides);
@@ -958,28 +968,33 @@ wp_nonce_field( 'custom-header-options', '_wpnonce-custom-header-options' ); ?>
 			$this->step_1();
 	}
 
+	/**
+	 * Replace default attachment actions with "Set as header" link.
+	 *
+	 * @since 3.4.0
+	 */
 	function attachment_fields_to_edit( $form_fields, $post ) {
-		if ( isset( $_REQUEST['context'] ) && $_REQUEST['context'] == 'custom-header' ) {
-			$form_fields = array();
-			$href = esc_url(add_query_arg(array(
-				'page' => 'custom-header',
-				'step' => 2,
-				'_wpnonce-custom-header-upload' => wp_create_nonce('custom-header-upload'),
-				'file' => $post->ID
-			), admin_url('themes.php')));
+		$form_fields = array();
+		$href = esc_url(add_query_arg(array(
+			'page' => 'custom-header',
+			'step' => 2,
+			'_wpnonce-custom-header-upload' => wp_create_nonce('custom-header-upload'),
+			'file' => $post->ID
+		), admin_url('themes.php')));
 
-			$form_fields['buttons'] = array( 'tr' => '<tr class="submit"><td></td><td><a data-location="' . $href . '" class="wp-set-header">' . __( 'Set as header' ) . '</a></td></tr>' );
-			$form_fields['context'] = array( 'input' => 'hidden', 'value' => 'custom-header' );
-		}
+		$form_fields['buttons'] = array( 'tr' => '<tr class="submit"><td></td><td><a data-location="' . $href . '" class="wp-set-header">' . __( 'Set as header' ) . '</a></td></tr>' );
+		$form_fields['context'] = array( 'input' => 'hidden', 'value' => 'custom-header' );
 
 		return $form_fields;
 	}
 
-	function filter_upload_tabs( $tabs ) {
-		if ( isset( $_REQUEST['context'] ) && $_REQUEST['context'] == 'custom-header' )
-			return array( 'library' => __('Media Library') );
-
-		return $tabs;
+	/**
+	 * Leave only "Media Library" tab in the uploader window.
+	 *
+	 * @since 3.4.0
+	 */
+	function filter_upload_tabs() {
+		return array( 'library' => __('Media Library') );
 	}
 
 }

@@ -13,11 +13,6 @@ if ( ! current_user_can( 'edit_theme_options' ) )
 
 global $wp_scripts, $wp_customize;
 
-wp_reset_vars( array( 'theme' ) );
-
-if ( ! $theme )
-	$theme = get_stylesheet();
-
 $registered = $wp_scripts->registered;
 $wp_scripts = new WP_Scripts;
 $wp_scripts->registered = $registered;
@@ -39,6 +34,19 @@ do_action( 'customize_controls_enqueue_scripts' );
 wp_user_settings();
 _wp_admin_html_begin();
 
+$body_class = '';
+
+if ( wp_is_mobile() ) :
+	$body_class .= ' mobile';
+
+	?><meta name="viewport" id="viewport-meta" content="width=device-width, initial-scale=0.8, minimum-scale=0.5, maximum-scale=1.2"><?php
+endif;
+
+$is_ios = wp_is_mobile() && preg_match( '/iPad|iPod|iPhone/', $_SERVER['HTTP_USER_AGENT'] );
+
+if ( $is_ios )
+	$body_class .= ' ios';
+
 $admin_title = sprintf( __( '%1$s &#8212; WordPress' ), strip_tags( sprintf( __( 'Customize %s' ), $wp_customize->theme()->display('Name') ) ) );
 ?><title><?php echo $admin_title; ?></title><?php
 
@@ -46,9 +54,10 @@ do_action( 'customize_controls_print_styles' );
 do_action( 'customize_controls_print_scripts' );
 ?>
 </head>
-<body class="wp-full-overlay">
+<body class="<?php echo esc_attr( $body_class ); ?>">
+<div class="wp-full-overlay expanded">
 	<form id="customize-controls" class="wrap wp-full-overlay-sidebar">
-		<?php wp_nonce_field( 'customize_controls' ); ?>
+		<?php wp_nonce_field( 'customize_controls-' . $wp_customize->get_stylesheet() ); ?>
 		<div id="customize-header-actions" class="wp-full-overlay-header">
 			<?php
 				$save_text = $wp_customize->is_theme_active() ? __( 'Save &amp; Publish' ) : __( 'Save &amp; Activate' );
@@ -68,8 +77,10 @@ do_action( 'customize_controls_print_scripts' );
 		<div class="wp-full-overlay-sidebar-content">
 			<div id="customize-info" class="customize-section<?php if ( $cannot_expand ) echo ' cannot-expand'; ?>">
 				<div class="customize-section-title">
-					<span class="preview-notice"><?php _e('You are previewing'); ?></span>
-					<strong class="theme-name"><?php echo $wp_customize->theme()->display('Name'); ?></strong>
+					<span class="preview-notice"><?php
+						/* translators: %s is the theme name in the Customize/Live Preview pane */
+						echo sprintf( __( 'You are previewing %s' ), '<strong class="theme-name">' . $wp_customize->theme()->display('Name') . '</strong>' );
+					?></span>
 				</div>
 				<?php if ( ! $cannot_expand ) : ?>
 				<div class="customize-section-content">
@@ -94,8 +105,8 @@ do_action( 'customize_controls_print_scripts' );
 
 		<div id="customize-footer-actions" class="wp-full-overlay-footer">
 			<a href="#" class="collapse-sidebar button-secondary" title="<?php esc_attr_e('Collapse Sidebar'); ?>">
-				<span class="collapse-sidebar-label"><?php _e('Collapse'); ?></span>
 				<span class="collapse-sidebar-arrow"></span>
+				<span class="collapse-sidebar-label"><?php _e('Collapse'); ?></span>
 			</a>
 		</div>
 	</form>
@@ -143,6 +154,10 @@ do_action( 'customize_controls_print_scripts' );
 			'isCrossDomain' => $cross_domain,
 			'fallback'      => $fallback_url,
 		),
+		'browser'  => array(
+			'mobile' => wp_is_mobile(),
+			'ios'    => $is_ios,
+		),
 		'settings' => array(),
 		'controls' => array(),
 	);
@@ -163,5 +178,6 @@ do_action( 'customize_controls_print_scripts' );
 	<script type="text/javascript">
 		var _wpCustomizeSettings = <?php echo json_encode( $settings ); ?>;
 	</script>
+</div>
 </body>
 </html>

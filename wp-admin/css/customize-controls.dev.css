@@ -12,6 +12,19 @@ body {
 	margin: 0;
 }
 
+.control-section.customize-section:hover,
+.control-section.customize-section.open {
+	border-top-color: #808080;
+}
+
+.control-section.customize-section:hover {
+	border-bottom-color: #6d6d6d;
+}
+
+.customize-section.open:hover {
+	border-bottom-color: #dfdfdf;
+}
+
 .customize-section:last-child {
 	box-shadow: 0 1px 0 0px #fff;
 }
@@ -53,26 +66,26 @@ body {
 	background-image:         linear-gradient( top, #f5f5f5, #eee );
 }
 
-.control-section .customize-section-title:hover {
-	color: #222;
-	background-color: #f9f9f9;
-	background-image: -webkit-linear-gradient( top, #f9f9f9, #f1f1f1 );
-	background-image:    -moz-linear-gradient( top, #f9f9f9, #f1f1f1 );
-	background-image:     -ms-linear-gradient( top, #f9f9f9, #f1f1f1 );
-	background-image:      -o-linear-gradient( top, #f9f9f9, #f1f1f1 );
-	background-image:         linear-gradient( top, #f9f9f9, #f1f1f1 );
+.control-section:hover .customize-section-title,
+.control-section .customize-section-title:hover,
+.control-section.open .customize-section-title {
+	color: #fff;
+	text-shadow: 0 -1px 0 #333;
+	background-color: #808080;
+	background-image: -webkit-linear-gradient( top, #808080, #6d6d6d );
+	background-image:    -moz-linear-gradient( top, #808080, #6d6d6d );
+	background-image:     -ms-linear-gradient( top, #808080, #6d6d6d );
+	background-image:      -o-linear-gradient( top, #808080, #6d6d6d );
+	background-image:         linear-gradient( top, #808080, #6d6d6d );
 }
 
 .control-section.open .customize-section-title {
-	border-bottom: 1px solid #e5e5e5;
-}
-
-.control-section.open .customize-section-title:hover {
-	border-bottom: 1px solid #dfdfdf;
+	border-bottom: 1px solid #6d6d6d;
 }
 
 .customize-section.open .customize-section-content {
 	display: block;
+	background: #fdfdfd;
 }
 
 .customize-section-title:after {
@@ -92,17 +105,20 @@ body {
 	display: none;
 }
 
-.customize-section.open .customize-section-title:after {
-	margin-top: -1px;
-	border-width: 0 6px 6px;
-}
-
 .customize-section-title:hover:after {
 	border-color: #aaa transparent;
 }
 
+.control-section .customize-section-title:hover:after {
+	border-color: #eee transparent;
+}
+
 .control-section .customize-section-title:after {
 	top: 15px;
+}
+
+#customize-info .customize-section-content {
+	background: transparent;
 }
 
 #customize-info .preview-notice {
@@ -115,6 +131,7 @@ body {
 	font-size: 20px;
 	font-weight: 200;
 	line-height: 24px;
+	color: #333;
 	display: block;
 	text-shadow: 0 1px 0 #fff;
 }
@@ -280,11 +297,6 @@ body {
 	z-index: 1;
 }
 
-.customize-control.open .dropdown-arrow:after {
-	border-width: 0 4px 4px 4px;
-	margin-top: -2px;
-}
-
 .customize-section .dropdown:hover .dropdown-content,
 .customize-control .dropdown:hover .dropdown-arrow {
 	border-color: #aaa;
@@ -297,7 +309,7 @@ body {
 .customize-control .dropdown-status {
 	display: none;
 	max-width: 112px;
-	color: #999;
+	color: #777;
 }
 
 /*
@@ -390,10 +402,6 @@ body {
 	text-align: right;
 }
 
-.customize-section .customize-control-image .actions a {
-	display: block;
-}
-
 .customize-section .customize-control-image .library ul {
 	border-bottom: 1px solid #dfdfdf;
 	float: left;
@@ -416,7 +424,7 @@ body {
 	padding-bottom: 4px;
 
 	color: #777;
-	background: #f5f5f5;
+	background: #fdfdfd;
 	border-color: #dfdfdf;
 	-webkit-border-radius: 3px 3px 0 0;
 	border-radius: 3px 3px 0 0 ;
@@ -444,7 +452,7 @@ body {
 
 .customize-section .customize-control-image .library .thumbnail img {
 	display: block;
-	max-width: 220px;
+	max-width: 90%;
 	max-height: 80px;
 
 	margin: 5px auto;
@@ -467,6 +475,7 @@ body {
 	text-align: center;
 	color: #777;
 	position: relative;
+	cursor: default;
 }
 
 .customize-section .customize-control-upload .upload-dropzone.supports-drag-drop,
@@ -479,7 +488,29 @@ body {
 	transition:         border-color 0.1s;
 }
 
+.customize-section .customize-control-upload .library ul li,
+.customize-section .customize-control-image .library ul li {
+	cursor: pointer;
+}
+
 .customize-section .customize-control-upload .upload-dropzone.supports-drag-drop.drag-over,
 .customize-section .customize-control-image .upload-dropzone.supports-drag-drop.drag-over {
 	border-color: #83b4d8;
 }
+
+/**
+ * iOS can't scroll iframes,
+ * instead it expands the iframe size to match the size of the content
+ */
+.ios .wp-full-overlay {
+	position: relative;
+}
+
+.ios #customize-preview {
+	position: relative;
+}
+
+.ios #customize-controls .wp-full-overlay-sidebar-content {
+	-webkit-overflow-scrolling: touch;
+}
+

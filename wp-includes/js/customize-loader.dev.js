@@ -17,14 +17,11 @@ if ( typeof wp === 'undefined' )
 			// Ensure the loader is supported.
 			// Check for settings, postMessage support, and whether we require CORS support.
 			if ( ! Loader.settings || ! $.support.postMessage || ( ! $.support.cors && Loader.settings.isCrossDomain ) ) {
-				this.body.removeClass( 'customize-support' ).addClass( 'no-customize-support' );
 				return;
 			}
 
-			this.body.removeClass( 'no-customize-support' ).addClass( 'customize-support' );
-
 			this.window  = $( window );
-			this.element = $( '<div id="customize-container" class="wp-full-overlay" />' ).appendTo( this.body );
+			this.element = $( '<div id="customize-container" />' ).appendTo( this.body );
 
 			this.bind( 'open', this.overlay.show );
 			this.bind( 'close', this.overlay.hide );
@@ -57,7 +54,7 @@ if ( typeof wp === 'undefined' )
 		hashchange: function( e ) {
 			var hash = window.location.toString().split('#')[1];
 
-			if ( hash && 0 === hash.indexOf( 'customize=on' ) )
+			if ( hash && 0 === hash.indexOf( 'wp_customize=on' ) )
 				Loader.open( Loader.settings.url + '?' + hash );
 
 			if ( ! hash && ! $.support.history )
@@ -70,6 +67,10 @@ if ( typeof wp === 'undefined' )
 			if ( this.active )
 				return;
 
+			// Load the full page on mobile devices.
+			if ( Loader.settings.browser.mobile )
+				return window.location = src;
+
 			this.active = true;
 			this.body.addClass('customize-loading');
 
@@ -77,7 +78,11 @@ if ( typeof wp === 'undefined' )
 			this.iframe.one( 'load', this.loaded );
 
 			// Create a postMessage connection with the iframe.
-			this.messenger = new api.Messenger( src, this.iframe[0].contentWindow );
+			this.messenger = new api.Messenger({
+				url: src,
+				channel: 'loader',
+				targetWindow: this.iframe[0].contentWindow
+			});
 
 			// Wait for the connection from the iframe before sending any postMessage events.
 			this.messenger.bind( 'ready', function() {
@@ -99,7 +104,7 @@ if ( typeof wp === 'undefined' )
 			if ( $.support.history && window.location.href !== src )
 				history.pushState( { customize: src }, '', src );
 			else if ( ! $.support.history && $.support.hashchange && hash )
-				window.location.hash = 'customize=on&' + hash;
+				window.location.hash = 'wp_customize=on&' + hash;
 
 			this.trigger( 'open' );
 		},

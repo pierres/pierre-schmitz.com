@@ -78,10 +78,21 @@ final class WP_Customize_Manager {
 	 * @since 3.4.0
 	 */
 	public function setup_theme() {
-		if ( ! ( isset( $_REQUEST['customize'] ) && 'on' == $_REQUEST['customize'] ) && ! basename( $_SERVER['PHP_SELF'] ) == 'customize.php' )
-			return;
-
 		send_origin_headers();
+
+		$this->original_stylesheet = get_stylesheet();
+
+		$this->theme = wp_get_theme( isset( $_REQUEST['theme'] ) ? $_REQUEST['theme'] : null );
+
+		// You can't preview a theme if it doesn't exist, or if it is not allowed (unless active).
+		if ( ! $this->theme->exists() )
+			wp_die( __( 'Cheatin&#8217; uh?' ) );
+
+		if ( $this->theme->get_stylesheet() != get_stylesheet() && ( ! $this->theme()->is_allowed() || ! current_user_can( 'switch_themes' ) ) )
+			wp_die( __( 'Cheatin&#8217; uh?' ) );
+
+		if ( ! current_user_can( 'edit_theme_options' ) )
+			wp_die( __( 'Cheatin&#8217; uh?' ) );
 
 		$this->start_previewing_theme();
 		show_admin_bar( false );
@@ -95,19 +106,9 @@ final class WP_Customize_Manager {
 	 * @since 3.4.0
 	 */
 	public function start_previewing_theme() {
-		if ( $this->is_preview() || false === $this->theme || ( $this->theme && ! $this->theme->exists() ) )
+		// Bail if we're already previewing.
+		if ( $this->is_preview() )
 			return;
-
-		// Initialize $theme and $original_stylesheet if they do not yet exist.
-		if ( ! isset( $this->theme ) ) {
-			$this->theme = wp_get_theme( isset( $_REQUEST['theme'] ) ? $_REQUEST['theme'] : null );
-			if ( ! $this->theme->exists() ) {
-				$this->theme = false;
-				return;
-			}
-		}
-
-		$this->original_stylesheet = get_stylesheet();
 
 		$this->previewing = true;
 
@@ -263,6 +264,7 @@ final class WP_Customize_Manager {
 
 		wp_enqueue_script( 'customize-preview' );
 		add_action( 'wp_head', array( $this, 'customize_preview_base' ) );
+		add_action( 'wp_head', array( $this, 'customize_preview_html5' ) );
 		add_action( 'wp_footer', array( $this, 'customize_preview_settings' ), 20 );
 		add_action( 'shutdown', array( $this, 'customize_preview_signature' ), 1000 );
 		add_filter( 'wp_die_handler', array( $this, 'remove_preview_signature' ) );
@@ -284,13 +286,33 @@ final class WP_Customize_Manager {
 	}
 
 	/**
+	 * Print a workaround to handle HTML5 tags in IE < 9
+	 *
+	 * @since 3.4.0
+	 */
+	public function customize_preview_html5() { ?>
+		<!--[if lt IE 9]>
+		<script type="text/javascript">
+			var e = [ 'abbr', 'article', 'aside', 'audio', 'canvas', 'datalist', 'details',
+				'figure', 'footer', 'header', 'hgroup', 'mark', 'menu', 'meter', 'nav',
+				'output', 'progress', 'section', 'time', 'video' ];
+			for ( var i = 0; i < e.length; i++ ) {
+				document.createElement( e[i] );
+			}
+		</script>
+		<![endif]--><?php
+	}
+
+	/**
 	 * Print javascript settings for preview frame.
 	 *
 	 * @since 3.4.0
 	 */
 	public function customize_preview_settings() {
 		$settings = array(
-			'values' => array(),
+			'values'  => array(),
+			'channel' => esc_js( $_POST['customize_messenger_channel'] ),
+			'backgroundImageHasDefault' => current_theme_supports( 'custom-background', 'default-image' ),
 		);
 
 		foreach ( $this->settings as $id => $setting ) {
@@ -399,13 +421,10 @@ final class WP_Customize_Manager {
 		if ( ! $this->is_preview() )
 			die;
 
-		check_ajax_referer( 'customize_controls', 'nonce' );
+		check_ajax_referer( 'customize_controls-' . $this->get_stylesheet(), 'nonce' );
 
 		// Do we have to switch themes?
 		if ( $this->get_stylesheet() != $this->original_stylesheet ) {
-			if ( ! current_user_can( 'switch_themes' ) )
-				die;
-
 			// Temporarily stop previewing the theme to allow switch_themes()
 			// to operate properly.
 			$this->stop_previewing_theme();
