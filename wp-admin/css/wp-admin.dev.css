@@ -104,7 +104,7 @@ TABLE OF CONTENTS:
 }
 
 /* inner 2 column liquid layout */
-/*
+
 .inner-sidebar {
 	float: right;
 	clear: right;
@@ -139,9 +139,9 @@ TABLE OF CONTENTS:
 
 .has-right-sidebar #post-body-content {
 	margin-right: 300px;
+	float: none;
+	width: auto;
 }
-
-*/
 
 /* 2 columns main area */
 
@@ -731,7 +731,6 @@ p.install-help {
 .wp-admin select {
 	padding: 2px;
 	height: 2em;
-	max-width: 100%;
 }
 
 .wp-admin select[multiple] {
@@ -1892,8 +1891,11 @@ strong .post-com-count {
   8.0 - Layout Blocks
 ------------------------------------------------------------------------------*/
 
-body.admin-bar {
+html.wp-toolbar {
 	padding-top: 28px;
+	-webkit-box-sizing: border-box;
+	-moz-box-sizing: border-box;
+	box-sizing: border-box;
 }
 
 .narrow {
@@ -5649,6 +5651,11 @@ table.form-table td .updated {
 	margin: 6px 0 8px;
 }
 
+#poststuff .inside #parent_id,
+.inline-edit-row #post_parent {
+	max-width: 100%;
+}
+
 #post-visibility-select,
 #post-formats-select {
 	line-height: 1.5em;
@@ -8188,13 +8195,13 @@ a.widget-control-edit {
 	width: auto; /* default 5em */
 	min-width: 5em;
 }
-.locale-ru-ru .press-this .posting {
+.locale-ru-ru.press-this .posting {
 	margin-right: 257px; /* default 212px + 45px */
 }
-.locale-ru-ru .press-this #photo-add-url-div input[type="text"]  {
+.locale-ru-ru.press-this #photo-add-url-div input[type="text"]  {
 	width: 255px; /* default 300px - 45px */
 }
-.locale-ru-ru .press-this #side-sortables {
+.locale-ru-ru.press-this #side-sortables {
 	width: 245px; /* default 200px + 45px */
 }
 

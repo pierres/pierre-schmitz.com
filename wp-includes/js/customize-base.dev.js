@@ -192,8 +192,11 @@ if ( typeof wp === 'undefined' )
 		},
 
 		setter: function( callback ) {
+			var from = this.get();
 			this._setter = callback;
-			this.set( this.get() );
+			// Temporarily clear value so setter can decide if it's valid.
+			this._value = null;
+			this.set( from );
 			return this;
 		},
 
@@ -406,6 +409,8 @@ if ( typeof wp === 'undefined' )
 						synchronizer = api.Element.synchronizer[ type ];
 					if ( 'text' === type || 'password' === type )
 						this.events += ' keyup';
+				} else if ( this.element.is('textarea') ) {
+					this.events += ' keyup';
 				}
 			}
 
@@ -496,7 +501,7 @@ if ( typeof wp === 'undefined' )
 			$.extend( this, options || {} );
 
 			this.add( 'channel', params.channel );
-			this.add( 'url', params.url );
+			this.add( 'url', params.url || '' );
 			this.add( 'targetWindow', params.targetWindow || defaultTarget );
 			this.add( 'origin', this.url() ).link( this.url ).setter( function( to ) {
 				return to.replace( /([^:]+:\/\/[^\/]+).*/, '$1' );
@@ -545,7 +550,7 @@ if ( typeof wp === 'undefined' )
 		send: function( id, data ) {
 			var message;
 
-			data = typeof data === 'undefined' ? {} : data;
+			data = typeof data === 'undefined' ? null : data;
 
 			if ( ! this.url() || ! this.targetWindow() )
 				return;

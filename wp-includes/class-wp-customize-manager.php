@@ -31,6 +31,8 @@ final class WP_Customize_Manager {
 		require( ABSPATH . WPINC . '/class-wp-customize-section.php' );
 		require( ABSPATH . WPINC . '/class-wp-customize-control.php' );
 
+		add_filter( 'wp_die_handler', array( $this, 'wp_die_handler' ) );
+
 		add_action( 'setup_theme',  array( $this, 'setup_theme' ) );
 		add_action( 'wp_loaded',    array( $this, 'wp_loaded' ) );
 
@@ -52,32 +54,55 @@ final class WP_Customize_Manager {
 		add_action( 'customize_controls_enqueue_scripts', array( $this, 'enqueue_control_scripts' ) );
 	}
 
-	/**
-	 * Update theme modifications for the current theme.
-	 * Note: Candidate core function.
-	 * http://core.trac.wordpress.org/ticket/20091
+ 	/**
+	 * Return true if it's an AJAX request.
 	 *
 	 * @since 3.4.0
-	 *
-	 * @param array $mods Theme modifications.
 	 */
-	public function set_theme_mods( $mods ) {
-		$current = get_theme_mods();
-
-		$mods = wp_parse_args( $mods, $current );
-
-		$theme = get_stylesheet();
-		update_option( "theme_mods_$theme", $mods );
+	public function doing_ajax() {
+		return isset( $_POST['customized'] ) || ( defined( 'DOING_AJAX' ) && DOING_AJAX );
 	}
 
 	/**
-	 * Start preview and customize theme.
+	 * Custom wp_die wrapper. Returns either the standard message for UI
+	 * or the AJAX message.
 	 *
-	 * Check if customize query variable exist. Init filters to filter the current theme.
+	 * @param  mixed $ajax_message AJAX return
+	 * @param  mixed $message      UI message
+	 *
+	 * @since 3.4.0
+	 */
+	private function wp_die( $ajax_message, $message ) {
+		if ( $this->doing_ajax() )
+			wp_die( $ajax_message );
+
+		wp_die( $message );
+	}
+
+	/**
+	 * Return the AJAX wp_die() handler if it's a customized request.
+	 *
+	 * @since 3.4.0
+	 */
+	public function wp_die_handler() {
+		if ( $this->doing_ajax() )
+			return '_ajax_wp_die_handler';
+
+		return '_default_wp_die_handler';
+	}
+	/**
+	* Start preview and customize theme.
+	*
+	* Check if customize query variable exist. Init filters to filter the current theme.
 	 *
 	 * @since 3.4.0
 	 */
 	public function setup_theme() {
+		if ( is_admin() && ! $this->doing_ajax() )
+		    auth_redirect();
+		elseif ( $this->doing_ajax() && ! is_user_logged_in())
+		    wp_die( 0 );
+
 		send_origin_headers();
 
 		$this->original_stylesheet = get_stylesheet();
@@ -86,13 +111,13 @@ final class WP_Customize_Manager {
 
 		// You can't preview a theme if it doesn't exist, or if it is not allowed (unless active).
 		if ( ! $this->theme->exists() )
-			wp_die( __( 'Cheatin&#8217; uh?' ) );
+			$this->wp_die( -1, __( 'Cheatin&#8217; uh?' ) );
 
 		if ( $this->theme->get_stylesheet() != get_stylesheet() && ( ! $this->theme()->is_allowed() || ! current_user_can( 'switch_themes' ) ) )
-			wp_die( __( 'Cheatin&#8217; uh?' ) );
+			$this->wp_die( -1, __( 'Cheatin&#8217; uh?' ) );
 
 		if ( ! current_user_can( 'edit_theme_options' ) )
-			wp_die( __( 'Cheatin&#8217; uh?' ) );
+			$this->wp_die( -1, __( 'Cheatin&#8217; uh?' ) );
 
 		$this->start_previewing_theme();
 		show_admin_bar( false );
@@ -312,7 +337,6 @@ final class WP_Customize_Manager {
 		$settings = array(
 			'values'  => array(),
 			'channel' => esc_js( $_POST['customize_messenger_channel'] ),
-			'backgroundImageHasDefault' => current_theme_supports( 'custom-background', 'default-image' ),
 		);
 
 		foreach ( $this->settings as $id => $setting ) {
@@ -731,10 +755,15 @@ final class WP_Customize_Manager {
 			'priority'       => 60,
 		) );
 
-		$this->add_setting( 'header_image', array(
+		$this->add_setting( new WP_Customize_Filter_Setting( $this, 'header_image', array(
 			'default'        => get_theme_support( 'custom-header', 'default-image' ),
 			'theme_supports' => 'custom-header',
-		) );
+		) ) );
+
+		$this->add_setting( new WP_Customize_Header_Image_Setting( $this, 'header_image_data', array(
+			// 'default'        => get_theme_support( 'custom-header', 'default-image' ),
+			'theme_supports' => 'custom-header',
+		) ) );
 
 		$this->add_control( new WP_Customize_Header_Image_Control( $this ) );
 
@@ -750,6 +779,10 @@ final class WP_Customize_Manager {
 			'default'        => get_theme_support( 'custom-background', 'default-image' ),
 			'theme_supports' => 'custom-background',
 		) );
+
+		$this->add_setting( new WP_Customize_Background_Image_Setting( $this, 'background_image_thumb', array(
+			'theme_supports' => 'custom-background',
+		) ) );
 
 		$this->add_control( new WP_Customize_Background_Image_Control( $this ) );
 

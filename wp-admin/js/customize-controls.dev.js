@@ -122,7 +122,7 @@
 			this.farbtastic = $.farbtastic( this.container.find('.farbtastic-placeholder'), control.setting.set );
 
 			// Only pass through values that are valid hexes/empty.
-			input.link( this.setting ).validate = function( to ) {
+			input.sync( this.setting ).validate = function( to ) {
 				return rhex.test( to ) ? to : null;
 			};
 
@@ -239,6 +239,7 @@
 				control.selected.both.addClass('library-selected');
 			});
 
+			// Bind events to switch image urls.
 			this.library.on( 'click', 'a', function( event ) {
 				var value = $(this).data('customizeImageValue');
 
@@ -263,7 +264,7 @@
 			if ( this.tabs.uploaded && this.tabs.uploaded.target.length ) {
 				this.tabs.uploaded.both.removeClass('hidden');
 
-				$( '<a href="#" class="thumbnail"></a>' )
+				attachment.element = $( '<a href="#" class="thumbnail"></a>' )
 					.data( 'customizeImageValue', attachment.url )
 					.append( '<img src="' +  attachment.url+ '" />' )
 					.appendTo( this.tabs.uploaded.target );
@@ -301,6 +302,8 @@
 
 			api.Messenger.prototype.initialize.call( this, params, options );
 
+			this.add( 'previewUrl', params.previewUrl );
+
 			this.bind( 'ready', function() {
 				ready = true;
 
@@ -310,7 +313,7 @@
 
 			params.query = $.extend( params.query || {}, { customize_messenger_channel: this.channel() });
 
-			this.request = $.ajax( this.url(), {
+			this.request = $.ajax( this.previewUrl(), {
 				type: 'POST',
 				data: params.query,
 				xhrFields: {
@@ -329,8 +332,20 @@
 
 				// Check if the location response header differs from the current URL.
 				// If so, the request was redirected; try loading the requested page.
-				if ( location && location != self.url() ) {
+				if ( location && location != self.previewUrl() ) {
 					deferred.rejectWith( self, [ 'redirect', location ] );
+					return;
+				}
+
+				// Check if the user is not logged in.
+				if ( '0' === response ) {
+					deferred.rejectWith( self, [ 'logged out' ] );
+					return;
+				}
+
+				// Check for cheaters.
+				if ( '-1' === response ) {
+					deferred.rejectWith( self, [ 'cheatin' ] );
 					return;
 				}
 
@@ -398,12 +413,13 @@
 
 		/**
 		 * Requires params:
-		 *  - container - a selector or jQuery element
-		 *  - url       - the URL of preview frame
+		 *  - container  - a selector or jQuery element
+		 *  - previewUrl - the URL of preview frame
 		 */
 		initialize: function( params, options ) {
 			var self = this,
-				rscheme = /^https?/;
+				rscheme = /^https?/,
+				url;
 
 			$.extend( this, options || {} );
 
@@ -444,11 +460,9 @@
 			this.container   = api.ensure( params.container );
 			this.allowedUrls = params.allowedUrls;
 
-			api.Messenger.prototype.initialize.call( this, params );
+			params.url = window.location.href;
 
-			// We're dynamically generating the iframe, so the origin is set
-			// to the current window's location, not the url's.
-			this.origin.unlink( this.url ).set( window.location.href );
+			api.Messenger.prototype.initialize.call( this, params );
 
 			this.add( 'scheme', this.origin() ).link( this.origin ).setter( function( to ) {
 				var match = to.match( rscheme );
@@ -463,7 +477,7 @@
 			// are on different domains to avoid the case where the frontend doesn't have
 			// ssl certs.
 
-			this.url.setter( function( to ) {
+			this.add( 'previewUrl', params.previewUrl ).setter( function( to ) {
 				var result;
 
 				// Check for URLs that include "/wp-admin/" or end in "/wp-admin".
@@ -488,8 +502,8 @@
 				return result ? result : null;
 			});
 
-			// Refresh the preview when the URL is changed.
-			this.url.bind( this.refresh );
+			// Refresh the preview when the URL is changed (but not yet).
+			this.previewUrl.bind( this.refresh );
 
 			this.scroll = 0;
 			this.bind( 'scroll', function( distance ) {
@@ -497,7 +511,7 @@
 			});
 
 			// Update the URL when the iframe sends a URL message.
-			this.bind( 'url', this.url );
+			this.bind( 'url', this.previewUrl );
 		},
 
 		query: function() {},
@@ -515,17 +529,18 @@
 			this.abort();
 
 			this.loading = new api.PreviewFrame({
-				url:       this.url(),
-				query:     this.query() || {},
-				previewer: this
+				url:        this.url(),
+				previewUrl: this.previewUrl(),
+				query:      this.query() || {},
+				previewer:  this
 			});
 
 			this.loading.done( function() {
 				// 'this' is the loading frame
 				this.bind( 'synced', function() {
-					if ( self.iframe )
-						self.iframe.destroy();
-					self.iframe = this;
+					if ( self.preview )
+						self.preview.destroy();
+					self.preview = this;
 					delete self.loading;
 
 					self.targetWindow( this.targetWindow() );
@@ -540,8 +555,53 @@
 
 			this.loading.fail( function( reason, location ) {
 				if ( 'redirect' === reason && location )
-					self.url( location );
+					self.previewUrl( location );
+
+				if ( 'logged out' === reason ) {
+					if ( self.preview ) {
+						self.preview.destroy();
+						delete self.preview;
+					}
+
+					self.login().done( self.refresh );
+				}
+
+				if ( 'cheatin' === reason )
+					self.cheatin();
 			});
+		},
+
+		login: function() {
+			var previewer = this,
+				deferred, messenger, iframe;
+
+			if ( this._login )
+				return this._login;
+
+			deferred = $.Deferred();
+			this._login = deferred.promise();
+
+			messenger = new api.Messenger({
+				channel: 'login',
+				url:     api.settings.url.login
+			});
+
+			iframe = $('<iframe src="' + api.settings.url.login + '" />').appendTo( this.container );
+
+			messenger.targetWindow( iframe[0].contentWindow );
+
+			messenger.bind( 'login', function() {
+				iframe.remove();
+				messenger.destroy();
+				delete previewer._login;
+				deferred.resolve();
+			});
+
+			return this._login;
+		},
+
+		cheatin: function() {
+			$( document.body ).empty().addClass('cheatin').append( '<p>' + api.l10n.cheatin + '</p>' );
 		}
 	});
 
@@ -573,6 +633,9 @@
 
 		// Prevent the form from saving when enter is pressed.
 		$('#customize-controls').on( 'keydown', function( e ) {
+			if ( $( e.target ).is('textarea') )
+				return;
+
 			if ( 13 === e.which ) // Enter
 				e.preventDefault();
 		});
@@ -581,7 +644,7 @@
 		previewer = new api.Previewer({
 			container:   '#customize-preview',
 			form:        '#customize-controls',
-			url:         api.settings.url.preview,
+			previewUrl:  api.settings.url.preview,
 			allowedUrls: api.settings.url.allowed
 		}, {
 			query: function() {
@@ -595,7 +658,8 @@
 			nonce: $('#_wpnonce').val(),
 
 			save: function() {
-				var query = $.extend( this.query(), {
+				var self  = this,
+					query = $.extend( this.query(), {
 						action: 'customize_save',
 						nonce:  this.nonce
 					}),
@@ -609,7 +673,23 @@
 					body.removeClass('saving');
 				});
 
-				request.done( function() {
+				request.done( function( response ) {
+					// Check if the user is logged out.
+					if ( '0' === response ) {
+						self.preview.iframe.hide();
+						self.login().done( function() {
+							self.save();
+							self.preview.iframe.show();
+						});
+						return;
+					}
+
+					// Check for cheaters.
+					if ( '-1' === response ) {
+						self.cheatin();
+						return;
+					}
+
 					api.trigger( 'saved' );
 				});
 			}
@@ -632,8 +712,11 @@
 			} ) );
 		});
 
-		// Load the preview frame.
-		previewer.refresh();
+		// Check if preview url is valid and load the preview frame.
+		if ( previewer.previewUrl() )
+			previewer.refresh();
+		else
+			previewer.previewUrl( api.settings.url.home );
 
 		// Save and activated states
 		(function() {
@@ -681,11 +764,6 @@
 			api.state = state;
 		}());
 
-		api.bind( 'activated', function() {
-			if ( api.settings.url.activated )
-				window.location = api.settings.url.activated;
-		});
-
 		// Temporary accordion code.
 		$('.customize-section-title').click( function( event ) {
 			var clicked = $( this ).parents( '.customize-section' );
@@ -725,10 +803,17 @@
 		});
 
 		// Pass events through to the parent.
-		$.each([ 'saved', 'activated' ], function( i, id ) {
-			api.bind( id, function() {
-				parent.send( id );
-			});
+		api.bind( 'saved', function() {
+			parent.send( 'saved' );
+		});
+
+		// When activated, let the loader handle redirecting the page.
+		// If no loader exists, redirect the page ourselves (if a url exists).
+		api.bind( 'activated', function() {
+			if ( parent.targetWindow() )
+				parent.send( 'activated', api.settings.url.activated );
+			else if ( api.settings.url.activated )
+				window.location = api.settings.url.activated;
 		});
 
 		// Initialize the connection with the parent frame.
@@ -782,6 +867,35 @@
 			control.setting.bind( function( to ) {
 				control.element.set( 'blank' !== to );
 			});
+		});
+
+		// Handle header image data
+		api.control( 'header_image', function( control ) {
+			control.setting.bind( function( to ) {
+				if ( to === control.params.removed )
+					control.settings.data.set( false );
+			});
+
+			control.library.on( 'click', 'a', function( event ) {
+				control.settings.data.set( $(this).data('customizeHeaderImageData') );
+			});
+
+			control.uploader.success = function( attachment ) {
+				var data;
+
+				api.ImageControl.prototype.success.call( control, attachment );
+
+				data = {
+					attachment_id: attachment.id,
+					url:           attachment.url,
+					thumbnail_url: attachment.url,
+					height:        attachment.meta.height,
+					width:         attachment.meta.width
+				};
+
+				attachment.element.data( 'customizeHeaderImageData', data );
+				control.settings.data.set( data );
+			}
 		});
 
 		api.trigger( 'ready' );
