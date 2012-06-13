@@ -764,6 +764,7 @@ class Theme_Upgrader extends WP_Upgrader {
 
 		// Force refresh of theme update information
 		delete_site_transient('update_themes');
+		search_theme_directories( true );
 		foreach ( wp_get_themes() as $theme )
 			$theme->cache_delete();
 
@@ -812,6 +813,7 @@ class Theme_Upgrader extends WP_Upgrader {
 
 		// Force refresh of theme update information
 		delete_site_transient('update_themes');
+		search_theme_directories( true );
 		foreach ( wp_get_themes() as $theme )
 			$theme->cache_delete();
 
@@ -901,6 +903,7 @@ class Theme_Upgrader extends WP_Upgrader {
 
 		// Force refresh of theme update information
 		delete_site_transient('update_themes');
+		search_theme_directories( true );
 		foreach ( wp_get_themes() as $theme )
 			$theme->cache_delete();
 
@@ -1513,7 +1516,7 @@ class Theme_Installer_Skin extends WP_Upgrader_Skin {
 			'template'   => $template,
 			'stylesheet' => $stylesheet,
 		), admin_url('themes.php') );
-		$activate_link = wp_nonce_url( $activate_link, 'switch-theme_' . $template );
+		$activate_link = wp_nonce_url( $activate_link, 'switch-theme_' . $stylesheet );
 
 		$install_actions = array();
 		$install_actions['preview']  = '<a href="' . esc_url( $preview_link ) . '" class="hide-if-customize" title="' . esc_attr( sprintf( __('Preview &#8220;%s&#8221;'), $name ) ) . '">' . __('Preview') . '</a>';
@@ -1521,7 +1524,7 @@ class Theme_Installer_Skin extends WP_Upgrader_Skin {
 		$install_actions['activate'] = '<a href="' . esc_url( $activate_link ) . '" class="activatelink" title="' . esc_attr( sprintf( __('Activate &#8220;%s&#8221;'), $name ) ) . '">' . __('Activate') . '</a>';
 
 		if ( is_network_admin() && current_user_can( 'manage_network_themes' ) )
-			$install_actions['network_enable'] = '<a href="' . esc_url( wp_nonce_url( 'themes.php?action=enable&amp;theme=' . $template, 'enable-theme_' . $template ) ) . '" title="' . esc_attr__( 'Enable this theme for all sites in this network' ) . '" target="_parent">' . __( 'Network Enable' ) . '</a>';
+			$install_actions['network_enable'] = '<a href="' . esc_url( wp_nonce_url( 'themes.php?action=enable&amp;theme=' . $stylesheet, 'enable-theme_' . $stylesheet ) ) . '" title="' . esc_attr__( 'Enable this theme for all sites in this network' ) . '" target="_parent">' . __( 'Network Enable' ) . '</a>';
 
 		if ( $this->type == 'web' )
 			$install_actions['themes_page'] = '<a href="' . self_admin_url('theme-install.php') . '" title="' . esc_attr__('Return to Theme Installer') . '" target="_parent">' . __('Return to Theme Installer') . '</a>';
@@ -1577,7 +1580,7 @@ class Theme_Upgrader_Skin extends WP_Upgrader_Skin {
 				'template'   => $template,
 				'stylesheet' => $stylesheet,
 			), admin_url('themes.php') );
-			$activate_link = wp_nonce_url( $activate_link, 'switch-theme_' . $template );
+			$activate_link = wp_nonce_url( $activate_link, 'switch-theme_' . $stylesheet );
 
 			if ( get_stylesheet() == $stylesheet ) {
 				$update_actions['preview']  = '<a href="' . wp_customize_url( $stylesheet ) . '" class="hide-if-no-customize load-customize" title="' . esc_attr( sprintf( __('Customize &#8220;%s&#8221;'), $name ) ) . '">' . __('Customize') . '</a>';
