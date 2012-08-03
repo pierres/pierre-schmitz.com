@@ -323,6 +323,8 @@ class Share_Twitter extends Sharing_Source {
 	}
 
 	function sharing_twitter_via( $post ) {
+		return '';
+
 		// Default 'via' is always us.
 		$via = preg_replace( '/(https?:\/\/)|(\.)|(\/)/i', '', home_url() );
 
@@ -637,14 +639,11 @@ class Share_Facebook extends Sharing_Source {
 		}
 
 		if ( !class_exists( 'GP_Locales' ) ) {
-			require ABSPATH . 'glotpress.dir/gp/locales/locales.php';
+			require JETPACK__PLUGIN_DIR . 'locales.php';
 		}
 
-		// WP.com: get_locale() returns 'it'
-		$locale = GP_Locales::by_slug( $lang );
-
 		// Jetpack: get_locale() returns 'it_IT';
-		// $locale = GP_Locales::by_field( 'wp_locale', $lang );
+		$locale = GP_Locales::by_field( 'wp_locale', $lang );
 
 		if ( !$locale || empty( $locale->facebook_locale ) ) {
 			return false;

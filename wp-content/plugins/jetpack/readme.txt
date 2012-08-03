@@ -3,7 +3,7 @@ Contributors: automattic, apeatling, beaulebens, hugobaeta, joen, mdawaffe, andy
 Tags: WordPress.com, statistics, stats, views, tweets, twitter, widget, gravatar, hovercards, profile, equations, latex, math, maths, youtube, shortcode, archives, audio, blip, bliptv, dailymotion, digg, flickr, googlevideo, google, googlemaps, kyte, kytetv, livevideo, redlasso, rockyou, rss, scribd, slide, slideshare, soundcloud, vimeo, shortlinks, wp.me, subscriptions
 Requires at least: 3.2
 Tested up to: 3.4.1
-Stable tag: 1.6
+Stable tag: 1.6.1
 
 Supercharge your WordPress site with powerful features previously only available to WordPress.com users.
 
@@ -78,6 +78,11 @@ Use [shortcodes](http://support.wordpress.com/shortcodes/) to embed your media. 
 6. Gallery Carousel.
 
 == Changelog ==
+
+= 1.6.1 =
+* Bug Fix: Prevent Fatal error under certain conditions in sharing module
+* Bug Fix: Add cachebuster to sharing.css
+* Bug Fix: Disable via for Twitter until more robust code is in place
 
 = 1.6 =
 * Enhancement: Carousel: Better image resolution selection based on available width/height.
