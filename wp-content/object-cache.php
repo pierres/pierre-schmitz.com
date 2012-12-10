@@ -3,10 +3,10 @@
 /**
  * Plugin Name: XCache Object Cache Backend
  * Description: XCache backend for the WordPress Object Cache.
- * Version: 1.1.0
+ * Version: 1.1.1
  * Author: Pierre Schmitz
  * Author URI: https://pierre-schmitz.com/
- * Plugin URI: http://wordpress.org/extend/plugins/xcache/
+ * Plugin URI: https://wordpress.org/extend/plugins/xcache/
  */
 
 function wp_cache_add($key, $data, $group = '', $expire = 0) {
@@ -49,9 +49,17 @@ function wp_cache_incr($key, $offset = 1, $group = '') {
 	return $wp_object_cache->incr($key, $offset, $group);
 }
 
-
 function wp_cache_init() {
-	$GLOBALS['wp_object_cache'] = new XCache_Object_Cache();
+	if (!function_exists('xcache_get') || intval(ini_get('xcache.var_size')) == 0) {
+		$error = 'XCache is not configured correctly. Please refer to https://wordpress.org/extend/plugins/xcache/installation/ for instructions.';
+		if (function_exists('wp_die')) {
+			wp_die($error);
+		} else {
+			die($error);
+		}
+	} else {
+		$GLOBALS['wp_object_cache'] = new XCache_Object_Cache();
+	}
 }
 
 function wp_cache_replace($key, $data, $group = '', $expire = 0) {
@@ -101,15 +109,6 @@ class XCache_Object_Cache {
 
 	public function __construct() {
 		global $table_prefix, $blog_id;
-
-		if ( !function_exists( 'xcache_get' ) ) {
-			$error = 'You do not have XCache installed, so you cannot use the XCache object cache backend. Please remove the <code>object-cache.php</code> file from your content directory.';
-			if (function_exists('wp_die')) {
-				wp_die($error);
-			} else {
-				die($error);
-			}
-		}
 
 		$this->multisite = is_multisite();
 		$this->blog_prefix =  $this->multisite ? intval($blog_id) : '';
@@ -278,7 +277,7 @@ class XCache_Object_Cache {
 	}
 
 	public function reset() {
-		// TODO: remove non-global groups
+		// This function is deprecated as of WordPress 3.5
 	}
 
 	public function set($key, $data, $group = 'default', $expire = '') {
