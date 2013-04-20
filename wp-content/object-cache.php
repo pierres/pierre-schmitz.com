@@ -3,7 +3,7 @@
 /**
  * Plugin Name: XCache Object Cache Backend
  * Description: XCache backend for the WordPress Object Cache.
- * Version: 1.1.1
+ * Version: 1.1.2
  * Author: Pierre Schmitz
  * Author URI: https://pierre-schmitz.com/
  * Plugin URI: https://wordpress.org/extend/plugins/xcache/
@@ -201,7 +201,7 @@ class XCache_Object_Cache {
 	public function flush() {
 		$this->local_cache = array ();
 		// xcache_unset_by_prefix is only available since XCache 1.3
-		if (!function_exists('xcache_unset_by_prefix')) {
+		if (function_exists('xcache_unset_by_prefix')) {
 			return xcache_unset_by_prefix($this->prefix);
 		} else {
 			xcache_clear_cache(XC_TYPE_VAR, 0);
