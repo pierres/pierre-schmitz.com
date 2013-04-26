@@ -5,7 +5,7 @@
  * Plugin URI: http://wordpress.org/extend/plugins/jetpack/
  * Description: Bring the power of the WordPress.com cloud to your self-hosted WordPress. Jetpack enables you to connect your blog to a WordPress.com account to use the powerful features normally only available to WordPress.com users.
  * Author: Automattic
- * Version: 2.2.2
+ * Version: 2.2.3
  * Author URI: http://jetpack.me
  * License: GPL2+
  * Text Domain: jetpack
@@ -17,7 +17,7 @@ define( 'JETPACK__API_VERSION', 1 );
 define( 'JETPACK__MINIMUM_WP_VERSION', '3.3' );
 defined( 'JETPACK_CLIENT__AUTH_LOCATION' ) or define( 'JETPACK_CLIENT__AUTH_LOCATION', 'header' );
 defined( 'JETPACK_CLIENT__HTTPS' ) or define( 'JETPACK_CLIENT__HTTPS', 'AUTO' );
-define( 'JETPACK__VERSION', '2.2.2' );
+define( 'JETPACK__VERSION', '2.2.3' );
 define( 'JETPACK__PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 defined( 'JETPACK__GLOTPRESS_LOCALES_PATH' ) or define( 'JETPACK__GLOTPRESS_LOCALES_PATH', JETPACK__PLUGIN_DIR . 'locales.php' );
 
@@ -3327,6 +3327,13 @@ p {
 			'<strong>' . esc_html( $this->json_api_authorization_request['client_title'] ) . '</strong>'
 		) . '<img src="' . esc_url( $this->json_api_authorization_request['client_image'] ) . '" /></p>';
 	}
+
+	/**
+	 * Get $content_width, but with a <s>twist</s> filter.
+	 */
+	public static function get_content_width() {
+		return apply_filters( 'jetpack_content_width', $GLOBALS['content_width'] );
+	}
 }
 
 class Jetpack_Client {
@@ -4518,6 +4525,14 @@ require_once dirname( __FILE__ ) . '/class.photon.php';
 require dirname( __FILE__ ) . '/functions.photon.php';
 require dirname( __FILE__ ) . '/functions.compat.php';
 require dirname( __FILE__ ) . '/functions.gallery.php';
+
+$_jetpack_rest_api_compat_includes = apply_filters( 'jetpack_rest_api_compat', array() );
+
+if ( function_exists( 'bbpress' ) )
+	$_jetpack_rest_api_compat_includes = dirname( __FILE__ ) . '/class.jetpack-bbpress-json-api-compat.php';
+
+foreach ( $_jetpack_rest_api_compat_includes as $_jetpack_rest_api_compat_include )
+	require_once $_jetpack_rest_api_compat_include;
 
 class Jetpack_Error extends WP_Error {}
 
