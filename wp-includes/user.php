@@ -87,18 +87,18 @@ function wp_authenticate_username_password($user, $username, $password) {
 	$user = get_user_by('login', $username);
 
 	if ( !$user )
-		return new WP_Error('invalid_username', sprintf(__('<strong>ERROR</strong>: Invalid username. <a href="%s" title="Password Lost and Found">Lost your password</a>?'), wp_lostpassword_url()));
+		return new WP_Error( 'invalid_username', sprintf( __( '<strong>ERROR</strong>: Invalid username. <a href="%s" title="Password Lost and Found">Lost your password</a>?' ), wp_lostpassword_url() ) );
 
 	if ( is_multisite() ) {
 		// Is user marked as spam?
-		if ( 1 == $user->spam)
-			return new WP_Error('invalid_username', __('<strong>ERROR</strong>: Your account has been marked as a spammer.'));
+		if ( 1 == $user->spam )
+			return new WP_Error( 'spammer_account', __( '<strong>ERROR</strong>: Your account has been marked as a spammer.' ) );
 
 		// Is a user's blog marked as spam?
-		if ( !is_super_admin( $user->ID ) && isset($user->primary_blog) ) {
+		if ( !is_super_admin( $user->ID ) && isset( $user->primary_blog ) ) {
 			$details = get_blog_details( $user->primary_blog );
 			if ( is_object( $details ) && $details->spam == 1 )
-				return new WP_Error('blog_suspended', __('Site Suspended.'));
+				return new WP_Error( 'blog_suspended', __( 'Site Suspended.' ) );
 		}
 	}
 
@@ -275,11 +275,6 @@ function update_user_option( $user_id, $option_name, $newvalue, $global = false 
 
 	if ( !$global )
 		$option_name = $wpdb->prefix . $option_name;
-
-	// For backward compatibility. See differences between update_user_meta() and deprecated update_usermeta().
-	// http://core.trac.wordpress.org/ticket/13088
-	if ( is_null( $newvalue ) || is_scalar( $newvalue ) && empty( $newvalue ) )
-		return delete_user_meta( $user_id, $option_name );
 
 	return update_user_meta( $user_id, $option_name, $newvalue );
 }
@@ -474,11 +469,13 @@ class WP_User_Query {
 					$search_columns = array('user_email');
 				elseif ( is_numeric($search) )
 					$search_columns = array('user_login', 'ID');
-				elseif ( preg_match('|^https?://|', $search) && ! wp_is_large_network( 'users' ) )
+				elseif ( preg_match('|^https?://|', $search) && ! ( is_multisite() && wp_is_large_network( 'users' ) ) )
 					$search_columns = array('user_url');
 				else
 					$search_columns = array('user_login', 'user_nicename');
 			}
+
+			$search_columns = apply_filters( 'user_search_columns', $search_columns, $search, $this );
 
 			$this->query_where .= $this->get_search_sql( $search, $search_columns, $wild );
 		}
@@ -1390,7 +1387,7 @@ function wp_insert_user( $userdata ) {
 	}
 
 	$data = compact( 'user_pass', 'user_email', 'user_url', 'user_nicename', 'display_name', 'user_registered' );
-	$data = stripslashes_deep( $data );
+	$data = wp_unslash( $data );
 
 	if ( $update ) {
 		$wpdb->update( $wpdb->users, $data, compact( 'ID' ) );
@@ -1453,7 +1450,7 @@ function wp_update_user($userdata) {
 	// First, get all of the original fields
 	$user_obj = get_userdata( $ID );
 	if ( ! $user_obj )
-		return new WP_Error( 'invalid_user_id', __( 'Invalid user ID' ) );
+		return new WP_Error( 'invalid_user_id', __( 'Invalid user ID.' ) );
 
 	$user = $user_obj->to_array();
 
@@ -1504,8 +1501,8 @@ function wp_update_user($userdata) {
  * @return int The new user's ID.
  */
 function wp_create_user($username, $password, $email = '') {
-	$user_login = esc_sql( $username );
-	$user_email = esc_sql( $email    );
+	$user_login = wp_slash( $username );
+	$user_email = wp_slash( $email    );
 	$user_pass = $password;
 
 	$userdata = compact('user_login', 'user_email', 'user_pass');
@@ -1527,7 +1524,9 @@ function _get_additional_user_keys( $user ) {
 }
 
 /**
- * Set up the default contact methods.
+ * Set up the contact methods.
+ *
+ * Default contact methods were removed in 3.6. A filter dictates contact methods.
  *
  * @since 2.9.0
  * @access private
@@ -1536,10 +1535,13 @@ function _get_additional_user_keys( $user ) {
  * @return array $user_contactmethods Array of contact methods and their labels.
  */
 function _wp_get_user_contactmethods( $user = null ) {
-	$user_contactmethods = array(
-		'aim' => __('AIM'),
-		'yim' => __('Yahoo IM'),
-		'jabber' => __('Jabber / Google Talk')
-	);
+	$user_contactmethods = array();
+	if ( get_site_option( 'initial_db_version' ) < 23588 ) {
+		$user_contactmethods = array(
+			'aim'    => __( 'AIM' ),
+			'yim'    => __( 'Yahoo IM' ),
+			'jabber' => __( 'Jabber / Google Talk' )
+		);
+	}
 	return apply_filters( 'user_contactmethods', $user_contactmethods, $user );
 }

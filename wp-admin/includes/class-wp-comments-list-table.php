@@ -170,7 +170,7 @@ class WP_Comments_List_Table extends WP_List_Table {
 			/*
 			// I toyed with this, but decided against it. Leaving it in here in case anyone thinks it is a good idea. ~ Mark
 			if ( !empty( $_REQUEST['s'] ) )
-				$link = add_query_arg( 's', esc_attr( stripslashes( $_REQUEST['s'] ) ), $link );
+				$link = add_query_arg( 's', esc_attr( wp_unslash( $_REQUEST['s'] ) ), $link );
 			*/
 			$status_links[$status] = "<a href='$link'$class>" . sprintf(
 				translate_nooped_plural( $label, $num_comments->$status ),
@@ -315,7 +315,7 @@ class WP_Comments_List_Table extends WP_List_Table {
 		$this->user_can = current_user_can( 'edit_comment', $comment->comment_ID );
 
 		echo "<tr id='comment-$comment->comment_ID' class='$the_comment_class'>";
-		echo $this->single_row_columns( $comment );
+		$this->single_row_columns( $comment );
 		echo "</tr>\n";
 	}
 
@@ -456,7 +456,7 @@ class WP_Comments_List_Table extends WP_List_Table {
 			$author_url = '';
 		$author_url_display = preg_replace( '|http://(www\.)?|i', '', $author_url );
 		if ( strlen( $author_url_display ) > 50 )
-			$author_url_display = substr( $author_url_display, 0, 49 ) . '...';
+			$author_url_display = substr( $author_url_display, 0, 49 ) . '&hellip;';
 
 		echo "<strong>"; comment_author(); echo '</strong><br />';
 		if ( !empty( $author_url ) )

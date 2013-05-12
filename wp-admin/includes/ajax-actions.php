@@ -9,20 +9,29 @@
 /*
  * No-privilege Ajax handlers.
  */
+function wp_ajax_nopriv_heartbeat() {
+	$response = array();
 
-function wp_ajax_nopriv_autosave() {
-	$id = isset( $_POST['post_ID'] ) ? (int) $_POST['post_ID'] : 0;
+	// screen_id is the same as $current_screen->id and the JS global 'pagenow'
+	if ( ! empty($_POST['screenid']) )
+		$screen_id = sanitize_key($_POST['screenid']);
+	else
+		$screen_id = 'site';
 
-	if ( ! $id )
-		wp_die( -1 );
+	if ( ! empty($_POST['data']) ) {
+		$data = wp_unslash( (array) $_POST['data'] );
+		$response = apply_filters( 'heartbeat_nopriv_received', $response, $data, $screen_id );
+	}
 
-	$message = sprintf( __('<strong>ALERT: You are logged out!</strong> Could not save draft. <a href="%s" target="_blank">Please log in again.</a>'), wp_login_url() );
-	$x = new WP_Ajax_Response( array(
-		'what' => 'autosave',
-		'id' => $id,
-		'data' => $message
-	) );
-	$x->send();
+	$response = apply_filters( 'heartbeat_nopriv_send', $response, $screen_id );
+
+	// Allow the transport to be replaced with long-polling easily
+	do_action( 'heartbeat_nopriv_tick', $response, $screen_id );
+
+	// send the current time according to the server
+	$response['servertime'] = time();
+
+	wp_send_json($response);
 }
 
 /*
@@ -59,7 +68,7 @@ function wp_ajax_ajax_tag_search() {
 		wp_die( 0 );
 	}
 
-	$s = stripslashes( $_GET['q'] );
+	$s = wp_unslash( $_GET['q'] );
 
 	$comma = _x( ',', 'tag delimiter' );
 	if ( ',' !== $comma )
@@ -559,7 +568,7 @@ function wp_ajax_add_link_category( $action ) {
 	check_ajax_referer( $action );
 	if ( !current_user_can( 'manage_categories' ) )
 		wp_die( -1 );
-	$names = explode(',', $_POST['newcat']);
+	$names = explode(',', wp_unslash( $_POST['newcat'] ) );
 	$x = new WP_Ajax_Response();
 	foreach ( $names as $cat_name ) {
 		$cat_name = trim($cat_name);
@@ -572,7 +581,7 @@ function wp_ajax_add_link_category( $action ) {
 			continue;
 		else if ( is_array( $cat_id ) )
 			$cat_id = $cat_id['term_id'];
-		$cat_name = esc_html(stripslashes($cat_name));
+		$cat_name = esc_html( $cat_name );
 		$x->add( array(
 			'what' => 'link-category',
 			'id' => $cat_id,
@@ -651,7 +660,7 @@ function wp_ajax_get_tagcloud() {
 	$tags = get_terms( $taxonomy, array( 'number' => 45, 'orderby' => 'count', 'order' => 'DESC' ) );
 
 	if ( empty( $tags ) )
-		wp_die( isset( $tax->no_tagcloud ) ? $tax->no_tagcloud : __('No tags found!') );
+		wp_die( $tax->labels->not_found );
 
 	if ( is_wp_error( $tags ) )
 		wp_die( $tags->get_error_message() );
@@ -715,14 +724,16 @@ function wp_ajax_replyto_comment( $action ) {
 	check_ajax_referer( $action, '_ajax_nonce-replyto-comment' );
 
 	$comment_post_ID = (int) $_POST['comment_post_ID'];
+	$post = get_post( $comment_post_ID );
+	if ( ! $post )
+		wp_die( -1 );
+
 	if ( !current_user_can( 'edit_post', $comment_post_ID ) )
 		wp_die( -1 );
 
-	$status = $wpdb->get_var( $wpdb->prepare("SELECT post_status FROM $wpdb->posts WHERE ID = %d", $comment_post_ID) );
-
-	if ( empty($status) )
+	if ( empty( $post->post_status ) )
 		wp_die( 1 );
-	elseif ( in_array($status, array('draft', 'pending', 'trash') ) )
+	elseif ( in_array($post->post_status, array('draft', 'pending', 'trash') ) )
 		wp_die( __('ERROR: you are replying to a comment on a draft post.') );
 
 	$user = wp_get_current_user();
@@ -903,6 +914,7 @@ function wp_ajax_add_menu_item() {
 		);
 		echo walk_nav_menu_tree( $menu_items, 0, (object) $args );
 	}
+	wp_die();
 }
 
 function wp_ajax_add_meta() {
@@ -924,7 +936,7 @@ function wp_ajax_add_meta() {
 			$_POST['post_type'] = $post->post_type;
 			$_POST['post_status'] = 'draft';
 			$now = current_time('timestamp', 1);
-			$_POST['post_title'] = sprintf('Draft created on %s at %s', date(get_option('date_format'), $now), date(get_option('time_format'), $now));
+			$_POST['post_title'] = sprintf( __( 'Draft created on %1$s at %2$s' ), date( get_option( 'date_format' ), $now ), date( get_option( 'time_format' ), $now ) );
 
 			if ( $pid = edit_post() ) {
 				if ( is_wp_error( $pid ) ) {
@@ -956,8 +968,8 @@ function wp_ajax_add_meta() {
 		) );
 	} else { // Update?
 		$mid = (int) key( $_POST['meta'] );
-		$key = stripslashes( $_POST['meta'][$mid]['key'] );
-		$value = stripslashes( $_POST['meta'][$mid]['value'] );
+		$key = wp_unslash( $_POST['meta'][$mid]['key'] );
+		$value = wp_unslash( $_POST['meta'][$mid]['value'] );
 		if ( '' == trim($key) )
 			wp_die( __( 'Please provide a custom field name.' ) );
 		if ( '' == trim($value) )
@@ -1024,68 +1036,53 @@ function wp_ajax_add_user( $action ) {
 }
 
 function wp_ajax_autosave() {
-	global $login_grace_period;
-
 	define( 'DOING_AUTOSAVE', true );
 
-	$nonce_age = check_ajax_referer( 'autosave', 'autosavenonce' );
+	check_ajax_referer( 'autosave', 'autosavenonce' );
 
 	$_POST['post_category'] = explode(",", $_POST['catslist']);
 	if ( $_POST['post_type'] == 'page' || empty($_POST['post_category']) )
 		unset($_POST['post_category']);
 
-	$do_autosave = (bool) $_POST['autosave'];
-	$do_lock = true;
-
-	$data = $alert = '';
-	/* translators: draft saved date format, see http://php.net/date */
-	$draft_saved_date_format = __('g:i:s a');
-	/* translators: %s: date and time */
-	$message = sprintf( __('Draft saved at %s.'), date_i18n( $draft_saved_date_format ) );
-
+	$data = '';
 	$supplemental = array();
-	if ( isset($login_grace_period) )
-		$alert .= sprintf( __('Your login has expired. Please open a new browser window and <a href="%s" target="_blank">log in again</a>. '), add_query_arg( 'interim-login', 1, wp_login_url() ) );
-
 	$id = $revision_id = 0;
 
-	$post_ID = (int) $_POST['post_ID'];
-	$_POST['ID'] = $post_ID;
-	$post = get_post($post_ID);
+	$post_id = (int) $_POST['post_id'];
+	$_POST['ID'] = $_POST['post_ID'] = $post_id;
+	$post = get_post($post_id);
 	if ( 'auto-draft' == $post->post_status )
 		$_POST['post_status'] = 'draft';
 
-	if ( $last = wp_check_post_lock( $post->ID ) ) {
-		$do_autosave = $do_lock = false;
-
-		$last_user = get_userdata( $last );
-		$last_user_name = $last_user ? $last_user->display_name : __( 'Someone' );
-		$data = __( 'Autosave disabled.' );
-
-		$supplemental['disable_autosave'] = 'disable';
-		$alert .= sprintf( __( '%s is currently editing this article. If you update it, you will overwrite the changes.' ), esc_html( $last_user_name ) );
-	}
-
 	if ( 'page' == $post->post_type ) {
-		if ( !current_user_can('edit_page', $post_ID) )
+		if ( !current_user_can('edit_page', $post->ID) )
 			wp_die( __( 'You are not allowed to edit this page.' ) );
 	} else {
-		if ( !current_user_can('edit_post', $post_ID) )
+		if ( !current_user_can('edit_post', $post->ID) )
 			wp_die( __( 'You are not allowed to edit this post.' ) );
 	}
 
-	if ( $do_autosave ) {
-		// Drafts and auto-drafts are just overwritten by autosave
-		if ( 'auto-draft' == $post->post_status || 'draft' == $post->post_status ) {
+	if ( ! empty( $_POST['autosave'] ) ) {
+		if ( ! wp_check_post_lock( $post->ID ) && get_current_user_id() == $post->post_author && ( 'auto-draft' == $post->post_status || 'draft' == $post->post_status ) ) {
+			// Drafts and auto-drafts are just overwritten by autosave for the same user if the post is not locked
 			$id = edit_post();
-		} else { // Non drafts are not overwritten. The autosave is stored in a special post revision.
+		} else {
+			// Non drafts or other users drafts are not overwritten. The autosave is stored in a special post revision for each user.
 			$revision_id = wp_create_post_autosave( $post->ID );
 			if ( is_wp_error($revision_id) )
 				$id = $revision_id;
 			else
 				$id = $post->ID;
 		}
-		$data = $message;
+
+		// When is_wp_error($id), $id overwrites $data in WP_Ajax_Response
+		// todo: Needs review. The errors generated in WP_Ajax_Response and parsed with wpAjax.parseAjaxResponse() haven't been used for years.
+		if ( ! is_wp_error($id) ) {
+			/* translators: draft saved date format, see http://php.net/date */
+			$draft_saved_date_format = __('g:i:s a');
+			/* translators: %s: date and time */
+			$data = sprintf( __('Draft saved at %s.'), date_i18n( $draft_saved_date_format ) );
+		}
 	} else {
 		if ( ! empty( $_POST['auto_draft'] ) )
 			$id = 0; // This tells us it didn't actually save
@@ -1093,32 +1090,10 @@ function wp_ajax_autosave() {
 			$id = $post->ID;
 	}
 
-	if ( $do_lock && empty( $_POST['auto_draft'] ) && $id && is_numeric( $id ) ) {
-		$lock_result = wp_set_post_lock( $id );
-		$supplemental['active-post-lock'] = implode( ':', $lock_result );
-	}
-
-	if ( $nonce_age == 2 ) {
-		$supplemental['replace-autosavenonce'] = wp_create_nonce('autosave');
-		$supplemental['replace-getpermalinknonce'] = wp_create_nonce('getpermalink');
-		$supplemental['replace-samplepermalinknonce'] = wp_create_nonce('samplepermalink');
-		$supplemental['replace-closedpostboxesnonce'] = wp_create_nonce('closedpostboxes');
-		$supplemental['replace-_ajax_linking_nonce'] = wp_create_nonce( 'internal-linking' );
-		if ( $id ) {
-			if ( $_POST['post_type'] == 'post' )
-				$supplemental['replace-_wpnonce'] = wp_create_nonce('update-post_' . $id);
-			elseif ( $_POST['post_type'] == 'page' )
-				$supplemental['replace-_wpnonce'] = wp_create_nonce('update-page_' . $id);
-		}
-	}
-
-	if ( ! empty($alert) )
-		$supplemental['alert'] = $alert;
-
 	$x = new WP_Ajax_Response( array(
 		'what' => 'autosave',
 		'id' => $id,
-		'data' => $id ? $data : '',
+		'data' => $data,
 		'supplemental' => $supplemental
 	) );
 	$x->send();
@@ -1147,6 +1122,23 @@ function wp_ajax_closed_postboxes() {
 		$hidden = array_diff( $hidden, array('submitdiv', 'linksubmitdiv', 'manage-menu', 'create-menu') ); // postboxes that are always shown
 		update_user_option($user->ID, "metaboxhidden_$page", $hidden, true);
 	}
+
+	wp_die( 1 );
+}
+
+function wp_ajax_show_post_format_ui() {
+	if ( empty( $_POST['post_type'] ) )
+		wp_die( 0 );
+
+	check_ajax_referer( 'show-post-format-ui_' . $_POST['post_type'], 'nonce' );
+
+	if ( ! $post_type_object = get_post_type_object( $_POST['post_type'] ) )
+		wp_die( 0 );
+
+	if ( ! current_user_can( $post_type_object->cap->edit_posts ) )
+		wp_die( -1 );
+
+	update_user_option( get_current_user_id(), 'post_formats_' . $post_type_object->name, empty( $_POST['show'] ) ? 0 : 1 );
 
 	wp_die( 1 );
 }
@@ -1226,7 +1218,7 @@ function wp_ajax_wp_link_ajax() {
 	$args = array();
 
 	if ( isset( $_POST['search'] ) )
-		$args['s'] = stripslashes( $_POST['search'] );
+		$args['s'] = wp_unslash( $_POST['search'] );
 	$args['pagenum'] = ! empty( $_POST['page'] ) ? absint( $_POST['page'] ) : 1;
 
 	require(ABSPATH . WPINC . '/class-wp-editor.php');
@@ -1327,7 +1319,7 @@ function wp_ajax_inline_save() {
 	$data = &$_POST;
 
 	$post = get_post( $post_ID, ARRAY_A );
-	$post = add_magic_quotes($post); //since it is from db
+	$post = wp_slash($post); //since it is from db
 
 	$data['content'] = $post['post_content'];
 	$data['excerpt'] = $post['post_excerpt'];
@@ -1348,6 +1340,12 @@ function wp_ajax_inline_save() {
 		$data['comment_status'] = 'closed';
 	if ( empty($data['ping_status']) )
 		$data['ping_status'] = 'closed';
+
+	// Hack: wp_unique_post_slug() doesn't work for drafts, so we will fake that our post is published.
+	if ( ! empty( $data['post_name'] ) && in_array( $post['post_status'], array( 'draft', 'pending' ) ) ) {
+		$post['post_status'] = 'publish';
+		$data['post_name'] = wp_unique_post_slug( $data['post_name'], $post['ID'], $post['post_status'], $post['post_type'], $post['post_parent'] );
+	}
 
 	// update the post
 	edit_post();
@@ -1412,7 +1410,7 @@ function wp_ajax_inline_save_tax() {
 		$parent = $parent_tag->parent;
 		$level++;
 	}
-	echo $wp_list_table->single_row( $tag, $level );
+	$wp_list_table->single_row( $tag, $level );
 	wp_die();
 }
 
@@ -1424,7 +1422,7 @@ function wp_ajax_find_posts() {
 	$post_types = get_post_types( array( 'public' => true ), 'objects' );
 	unset( $post_types['attachment'] );
 
-	$s = stripslashes( $_POST['ps'] );
+	$s = wp_unslash( $_POST['ps'] );
 	$searchand = $search = '';
 	$args = array(
 		'post_type' => array_keys( $post_types ),
@@ -1776,7 +1774,7 @@ function wp_ajax_wp_remove_post_lock() {
 	if ( $active_lock[1] != get_current_user_id() )
 		wp_die( 0 );
 
-	$new_lock = ( time() - apply_filters( 'wp_check_post_lock_window', AUTOSAVE_INTERVAL * 2 ) + 5 ) . ':' . $active_lock[1];
+	$new_lock = ( time() - apply_filters( 'wp_check_post_lock_window', 120 ) + 5 ) . ':' . $active_lock[1];
 	update_post_meta( $post_id, '_edit_lock', $new_lock, implode( ':', $active_lock ) );
 	wp_die( 1 );
 }
@@ -1888,11 +1886,10 @@ function wp_ajax_save_attachment() {
 		$post['post_content'] = $changes['description'];
 
 	if ( isset( $changes['alt'] ) ) {
-		$alt = get_post_meta( $id, '_wp_attachment_image_alt', true );
-		$new_alt = stripslashes( $changes['alt'] );
-		if ( $alt != $new_alt ) {
-			$new_alt = wp_strip_all_tags( $new_alt, true );
-			update_post_meta( $id, '_wp_attachment_image_alt', addslashes( $new_alt ) );
+		$alt = wp_unslash( $changes['alt'] );
+		if ( $alt != get_post_meta( $id, '_wp_attachment_image_alt', true ) ) {
+			$alt = wp_strip_all_tags( $alt, true );
+			update_post_meta( $id, '_wp_attachment_image_alt', wp_slash( $alt ) );
 		}
 	}
 
@@ -1989,7 +1986,7 @@ function wp_ajax_save_attachment_order() {
 function wp_ajax_send_attachment_to_editor() {
 	check_ajax_referer( 'media-send-to-editor', 'nonce' );
 
-	$attachment = stripslashes_deep( $_POST['attachment'] );
+	$attachment = wp_unslash( $_POST['attachment'] );
 
 	$id = intval( $attachment['id'] );
 
@@ -2015,7 +2012,7 @@ function wp_ajax_send_attachment_to_editor() {
 		$html = '<a href="' . esc_url( $url ) . '"' . $rel . '>' . $html . '</a>';
 	}
 
-	remove_filter( 'media_send_to_editor', 'image_media_send_to_editor', 10, 3 );
+	remove_filter( 'media_send_to_editor', 'image_media_send_to_editor' );
 
 	if ( 'image' === substr( $post->post_mime_type, 0, 5 ) ) {
 		$align = isset( $attachment['align'] ) ? $attachment['align'] : 'none';
@@ -2024,6 +2021,8 @@ function wp_ajax_send_attachment_to_editor() {
 		$caption = isset( $attachment['post_excerpt'] ) ? $attachment['post_excerpt'] : '';
 		$title = ''; // We no longer insert title tags into <img> tags, as they are redundant.
 		$html = get_image_send_to_editor( $id, $caption, $title, $align, $url, (bool) $rel, $size, $alt );
+	} elseif ( 'video' === substr( $post->post_mime_type, 0, 5 ) || 'audio' === substr( $post->post_mime_type, 0, 5 )  ) {
+		$html = stripslashes_deep( $_POST['html'] );
 	}
 
 	$html = apply_filters( 'media_send_to_editor', $html, $id, $attachment );
@@ -2044,7 +2043,7 @@ function wp_ajax_send_attachment_to_editor() {
 function wp_ajax_send_link_to_editor() {
 	check_ajax_referer( 'media-send-to-editor', 'nonce' );
 
-	if ( ! $src = stripslashes( $_POST['src'] ) )
+	if ( ! $src = wp_unslash( $_POST['src'] ) )
 		wp_send_json_error();
 
 	if ( ! strpos( $src, '://' ) )
@@ -2053,7 +2052,7 @@ function wp_ajax_send_link_to_editor() {
 	if ( ! $src = esc_url_raw( $src ) )
 		wp_send_json_error();
 
-	if ( ! $title = trim( stripslashes( $_POST['title'] ) ) )
+	if ( ! $title = trim( wp_unslash( $_POST['title'] ) ) )
 		$title = wp_basename( $src );
 
 	$html = '';
@@ -2069,4 +2068,253 @@ function wp_ajax_send_link_to_editor() {
 	$html = apply_filters( $type . '_send_to_editor_url', $html, $src, $title );
 
 	wp_send_json_success( $html );
+}
+
+function wp_ajax_heartbeat() {
+	check_ajax_referer( 'heartbeat-nonce', '_nonce' );
+	$response = array();
+
+	// screen_id is the same as $current_screen->id and the JS global 'pagenow'
+	if ( ! empty($_POST['screenid']) )
+		$screen_id = sanitize_key($_POST['screenid']);
+	else
+		$screen_id = 'site';
+
+	if ( ! empty($_POST['data']) ) {
+		$data = (array) $_POST['data'];
+		// todo: how much to sanitize and preset and what to leave to be accessed from $data or $_POST..?
+		$user = wp_get_current_user();
+		$data['user_id'] = $user->exists() ? $user->ID : 0;
+
+		// todo: separate filters: 'heartbeat_[action]' so we call different callbacks only when there is data for them,
+		// or all callbacks listen to one filter and run when there is something for them in $data?
+		$response = apply_filters( 'heartbeat_received', $response, $data, $screen_id );
+	}
+
+	$response = apply_filters( 'heartbeat_send', $response, $screen_id );
+
+	// Allow the transport to be replaced with long-polling easily
+	do_action( 'heartbeat_tick', $response, $screen_id );
+
+	// send the current time acording to the server
+	$response['servertime'] = time();
+
+	wp_send_json($response);
+}
+
+function wp_ajax_revisions_data() {
+	check_ajax_referer( 'revisions-ajax-nonce', 'nonce' );
+
+	$compare_to = ! empty( $_GET['compare_to'] ) ? absint( $_GET['compare_to'] ) : 0;
+	$show_autosaves = ! empty( $_GET['show_autosaves'] );
+	$show_split_view = ! empty( $_GET['show_split_view'] );
+	$post_id = ! empty( $_GET['post_id'] ) ? absint( $_GET['post_id'] ) : 0;
+	$right_handle_at = ! empty( $_GET['right_handle_at'] ) ? (int) $_GET['right_handle_at'] : 0;
+	$left_handle_at = ! empty( $_GET['left_handle_at'] ) ? (int) $_GET['left_handle_at'] : 0;
+	$single_revision_id = ! empty( $_GET['single_revision_id'] ) ? absint( $_GET['single_revision_id'] ) : 0;
+	$compare_two_mode = (bool) $post_id;
+
+	$all_the_revisions = array();
+	if ( ! $post_id )
+		$post_id = $compare_to;
+
+	if ( ! current_user_can( 'read_post', $post_id ) )
+		continue;
+
+	if ( ! $revisions = wp_get_post_revisions( $post_id ) )
+		return;
+
+	$left_revision = get_post( $compare_to );
+
+	// single model fetch mode
+	// return the diff of a single revision comparison
+	if ( $single_revision_id ) {
+		$right_revision = get_post( $single_revision_id );
+
+		if ( ! $compare_to )
+			$left_revision = get_post( $post_id );
+
+		// make sure the right revision is the most recent
+		if ( $compare_two_mode && $right_revision->post_date < $left_revision->post_date ) {
+			$temp = $left_revision;
+			$left_revision = $right_revision;
+			$right_revision = $temp;
+		}
+
+		$lines_added = $lines_deleted = 0;
+		$content = '';
+		// compare from left to right, passed from application
+		foreach ( _wp_post_revision_fields() as $field => $field_value ) {
+			$left_content = apply_filters( "_wp_post_revision_field_$field", $left_revision->$field, $field, $left_revision, 'left' );
+			$right_content = apply_filters( "_wp_post_revision_field_$field", $right_revision->$field, $field, $right_revision, 'right' );
+
+			add_filter( "_wp_post_revision_field_$field", 'htmlspecialchars' );
+
+			$args = array();
+
+			if ( $show_split_view )
+				 $args = array( 'show_split_view' => true );
+
+			// compare_to == 0 means first revision, so compare to a blank field to show whats changed
+			$diff = wp_text_diff_with_count( ( 0 == $compare_to ) ? '' : $left_content, $right_content, $args );
+
+			if ( isset( $diff[ 'html' ] ) ) {
+				$content .= sprintf( '<div class="diff-label">%s</div>', $field_value );
+				$content .= $diff[ 'html' ];
+			}
+
+			if ( isset( $diff[ 'lines_added' ] ) )
+				$lines_added = $lines_added + $diff[ 'lines_added' ];
+
+			if ( isset( $diff[ 'lines_deleted' ] ) )
+				$lines_deleted = $lines_deleted + $diff[ 'lines_deleted' ];
+		}
+		$content = '' == $content ? __( 'No difference' ) : $content;
+
+		$all_the_revisions = array (
+			'diff'         => $content,
+			'linesDeleted' => $lines_deleted,
+			'linesAdded'   => $lines_added
+		);
+
+		echo json_encode( $all_the_revisions );
+		exit();
+	} // end single model fetch
+
+	$count = -1;
+
+	// reverse the list to start with oldest revision
+	$revisions = array_reverse( $revisions );
+
+	$previous_revision_id = 0;
+
+	/* translators: revision date format, see http://php.net/date */
+	$datef = _x( 'j F, Y @ G:i:s', 'revision date format');
+
+	foreach ( $revisions as $revision ) :
+		if ( ! $show_autosaves && wp_is_post_autosave( $revision ) )
+			continue;
+
+		$revision_from_date_author = '';
+		$is_current_revision = false;
+		$count++;
+
+		/**
+		* return blank data for diffs to the left of the left handle (for right handel model)
+		* or to the right of the right handle (for left handel model)
+		* and visa versa in RTL mode
+		*/
+		if( ! is_rtl() ) {
+			if ( ( ( 0 != $left_handle_at && $count < $left_handle_at ) ||
+				 ( 0 != $right_handle_at && $count > ( $right_handle_at - 2 ) ) ) ) {
+				$all_the_revisions[] = array (
+					'ID' => $revision->ID,
+				);
+				continue;
+			}
+		} else { // is_rtl
+			if ( ( 0 != $left_handle_at && $count > ( $left_handle_at - 1 ) ||
+				 ( 0 != $left_handle_at && $count < $right_handle_at ) ) ) {
+				$all_the_revisions[] = array (
+					'ID' => $revision->ID,
+				);
+				continue;
+			}
+		}
+
+		if ( $compare_two_mode ) {
+			$compare_to_gravatar = get_avatar( $left_revision->post_author, 24 );
+			$compare_to_author = get_the_author_meta( 'display_name', $left_revision->post_author );
+			$compare_to_date = date_i18n( $datef, strtotime( $left_revision->post_modified ) );
+
+			$revision_from_date_author = sprintf(
+				/* translators: post revision title: 1: author avatar, 2: author name, 3: time ago, 4: date */
+				_x( '%1$s %2$s, %3$s ago (%4$s)', 'post revision title' ),
+				$compare_to_gravatar,
+				$compare_to_author,
+				human_time_diff( strtotime( $left_revision->post_modified ), current_time( 'timestamp' ) ),
+				$compare_to_date
+			);
+		}
+
+		$gravatar = get_avatar( $revision->post_author, 24 );
+		$author = get_the_author_meta( 'display_name', $revision->post_author );
+		$date = date_i18n( $datef, strtotime( $revision->post_modified ) );
+		$revision_date_author = sprintf(
+			/* translators: post revision title: 1: author avatar, 2: author name, 3: time ago, 4: date */
+			_x( '%1$s %2$s, %3$s ago (%4$s)', 'post revision title' ),
+			$gravatar,
+			$author,
+			human_time_diff( strtotime( $revision->post_modified ), current_time( 'timestamp' ) ),
+			$date
+		);
+
+		/* translators: 1: date */
+		$autosavef = _x( '%1$s [Autosave]', 'post revision title extra' );
+		/* translators: 1: date */
+		$currentf  = _x( '%1$s [Current Revision]', 'post revision title extra' );
+
+		if ( ! $post = get_post( $post_id ) )
+			continue;
+
+		if ( $left_revision->post_modified === $post->post_modified )
+			$revision_from_date_author = sprintf( $currentf, $revision_from_date_author );
+		elseif ( wp_is_post_autosave( $left_revision ) )
+			$revision_from_date_author = sprintf( $autosavef, $revision_from_date_author );
+
+		if ( $revision->post_modified === $post->post_modified ) {
+			$revision_date_author = sprintf( $currentf, $revision_date_author );
+			$is_current_revision = true;
+		} elseif ( wp_is_post_autosave( $revision ) ) {
+			$revision_date_author = sprintf( $autosavef, $revision_date_author );
+		}
+
+		/* translators: revision date short format, see http://php.net/date */
+		$date_short_format = _x( 'j M @ G:i', 'revision date short format');
+		$date_short = date_i18n( $date_short_format, strtotime( $revision->post_modified ) );
+
+		$revision_date_author_short = sprintf(
+			'%s <strong>%s</strong><br />%s',
+			$gravatar,
+			$author,
+			$date_short
+		);
+
+		$restore_link = wp_nonce_url(
+			add_query_arg(
+				array( 'revision' => $revision->ID,
+					'action' => 'restore' ),
+					admin_url( 'revision.php' )
+			),
+			"restore-post_{$revision->ID}"
+		);
+
+		// if this is a left handled calculation swap data
+		if ( 0 != $right_handle_at ) {
+			$tmp = $revision_from_date_author;
+			$revision_from_date_author = $revision_date_author;
+			$revision_date_author = $tmp;
+		}
+
+		if ( ( $compare_two_mode || -1 !== $previous_revision_id ) ) {
+			$all_the_revisions[] = array (
+				'ID'           => $revision->ID,
+				'titleTo'      => $revision_date_author,
+				'titleFrom'    => $revision_from_date_author,
+				'titleTooltip' => $revision_date_author_short,
+				'restoreLink'  => urldecode( $restore_link ),
+				'previousID'   => $previous_revision_id,
+				'isCurrent'    => $is_current_revision,
+			);
+		}
+		$previous_revision_id = $revision->ID;
+
+	endforeach;
+
+	// in RTL + single handle mode, reverse the revision direction
+	if ( is_rtl() && $compare_two_mode )
+		$all_the_revisions = array_reverse( $all_the_revisions );
+
+	echo json_encode( $all_the_revisions );
+	exit();
 }

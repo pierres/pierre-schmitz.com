@@ -310,7 +310,7 @@ final class WP_Customize_Manager {
 	public function post_value( $setting ) {
 		if ( ! isset( $this->_post_values ) ) {
 			if ( isset( $_POST['customized'] ) )
-				$this->_post_values = json_decode( stripslashes( $_POST['customized'] ), true );
+				$this->_post_values = json_decode( wp_unslash( $_POST['customized'] ), true );
 			else
 				$this->_post_values = false;
 		}
@@ -897,9 +897,7 @@ final class WP_Customize_Manager {
 		if ( $menus ) {
 			$choices = array( 0 => __( '&mdash; Select &mdash;' ) );
 			foreach ( $menus as $menu ) {
-				$truncated_name = wp_html_excerpt( $menu->name, 40 );
-				$truncated_name = ( $truncated_name == $menu->name ) ? $menu->name : trim( $truncated_name ) . '&hellip;';
-				$choices[ $menu->term_id ] = $truncated_name;
+				$choices[ $menu->term_id ] = wp_html_excerpt( $menu->name, 40, '&hellip;' );
 			}
 
 			foreach ( $locations as $location => $description ) {

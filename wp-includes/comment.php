@@ -250,8 +250,10 @@ class WP_Comment_Query {
 		// $args can be whatever, only use the args defined in defaults to compute the key
 		$key = md5( serialize( compact(array_keys($defaults)) )  );
 		$last_changed = wp_cache_get( 'last_changed', 'comment' );
-		if ( ! $last_changed )
-			$last_changed = wp_cache_set( 'last_changed', 1, 'comment' );
+		if ( ! $last_changed ) {
+			$last_changed = microtime();
+			wp_cache_set( 'last_changed', $last_changed, 'comment' );
+		}
 		$cache_key = "get_comments:$key:$last_changed";
 
 		if ( $cache = wp_cache_get( $cache_key, 'comment' ) )
@@ -415,7 +417,7 @@ class WP_Comment_Query {
  *
  * @return array List of comment statuses.
  */
-function get_comment_statuses( ) {
+function get_comment_statuses() {
 	$status = array(
 		'hold'		=> __('Unapproved'),
 		/* translators: comment status  */
@@ -632,21 +634,21 @@ function wp_set_comment_cookies($comment, $user) {
 function sanitize_comment_cookies() {
 	if ( isset($_COOKIE['comment_author_'.COOKIEHASH]) ) {
 		$comment_author = apply_filters('pre_comment_author_name', $_COOKIE['comment_author_'.COOKIEHASH]);
-		$comment_author = stripslashes($comment_author);
+		$comment_author = wp_unslash($comment_author);
 		$comment_author = esc_attr($comment_author);
 		$_COOKIE['comment_author_'.COOKIEHASH] = $comment_author;
 	}
 
 	if ( isset($_COOKIE['comment_author_email_'.COOKIEHASH]) ) {
 		$comment_author_email = apply_filters('pre_comment_author_email', $_COOKIE['comment_author_email_'.COOKIEHASH]);
-		$comment_author_email = stripslashes($comment_author_email);
+		$comment_author_email = wp_unslash($comment_author_email);
 		$comment_author_email = esc_attr($comment_author_email);
 		$_COOKIE['comment_author_email_'.COOKIEHASH] = $comment_author_email;
 	}
 
 	if ( isset($_COOKIE['comment_author_url_'.COOKIEHASH]) ) {
 		$comment_author_url = apply_filters('pre_comment_author_url', $_COOKIE['comment_author_url_'.COOKIEHASH]);
-		$comment_author_url = stripslashes($comment_author_url);
+		$comment_author_url = wp_unslash($comment_author_url);
 		$_COOKIE['comment_author_url_'.COOKIEHASH] = $comment_author_url;
 	}
 }
@@ -669,10 +671,10 @@ function wp_allow_comment($commentdata) {
 
 	// Simple duplicate check
 	// expected_slashed ($comment_post_ID, $comment_author, $comment_author_email, $comment_content)
-	$dupe = "SELECT comment_ID FROM $wpdb->comments WHERE comment_post_ID = '$comment_post_ID' AND comment_parent = '$comment_parent' AND comment_approved != 'trash' AND ( comment_author = '$comment_author' ";
+	$dupe = $wpdb->prepare( "SELECT comment_ID FROM $wpdb->comments WHERE comment_post_ID = %d AND comment_parent = %s AND comment_approved != 'trash' AND ( comment_author = %s ", wp_unslash( $comment_post_ID ), wp_unslash( $comment_parent ), wp_unslash( $comment_author ) );
 	if ( $comment_author_email )
-		$dupe .= "OR comment_author_email = '$comment_author_email' ";
-	$dupe .= ") AND comment_content = '$comment_content' LIMIT 1";
+		$dupe .= $wpdb->prepare( "OR comment_author_email = %s ", wp_unslash( $comment_author_email ) );
+	$dupe .= $wpdb->prepare( ") AND comment_content = %s LIMIT 1", wp_unslash( $comment_content ) );
 	if ( $wpdb->get_var($dupe) ) {
 		do_action( 'comment_duplicate_trigger', $commentdata );
 		if ( defined('DOING_AJAX') )
@@ -1260,7 +1262,7 @@ function wp_get_current_commenter() {
  */
 function wp_insert_comment($commentdata) {
 	global $wpdb;
-	extract(stripslashes_deep($commentdata), EXTR_SKIP);
+	extract(wp_unslash($commentdata), EXTR_SKIP);
 
 	if ( ! isset($comment_author_IP) )
 		$comment_author_IP = '';
@@ -1290,12 +1292,7 @@ function wp_insert_comment($commentdata) {
 	$comment = get_comment($id);
 	do_action('wp_insert_comment', $id, $comment);
 
-	if ( function_exists( 'wp_cache_incr' ) ) {
-		wp_cache_incr( 'last_changed', 1, 'comment' );
-	} else {
-		$last_changed = wp_cache_get( 'last_changed', 'comment' );
-		wp_cache_set( 'last_changed', $last_changed + 1, 'comment' );
-	}
+	wp_cache_set( 'last_changed', microtime(), 'comment' );
 
 	return $id;
 }
@@ -1505,7 +1502,7 @@ function wp_update_comment($commentarr) {
 	$commentarr = wp_filter_comment( $commentarr );
 
 	// Now extract the merged array.
-	extract(stripslashes_deep($commentarr), EXTR_SKIP);
+	extract(wp_unslash($commentarr), EXTR_SKIP);
 
 	$comment_content = apply_filters('comment_save_pre', $comment_content);
 
@@ -1673,7 +1670,7 @@ function discover_pingback_server_uri( $url, $deprecated = '' ) {
 	if ( preg_match('#(image|audio|video|model)/#is', wp_remote_retrieve_header( $response, 'content-type' )) )
 		return false;
 
-	// Now do a GET since we're going to look in the html headers (and we're sure its not a binary file)
+	// Now do a GET since we're going to look in the html headers (and we're sure it's not a binary file)
 	$response = wp_remote_get( $url, array( 'timeout' => 2, 'httpversion' => '1.0' ) );
 
 	if ( is_wp_error( $response ) )
@@ -1756,7 +1753,7 @@ function do_trackbacks($post_id) {
 	else
 		$excerpt = apply_filters('the_excerpt', $post->post_excerpt);
 	$excerpt = str_replace(']]>', ']]&gt;', $excerpt);
-	$excerpt = wp_html_excerpt($excerpt, 252) . '...';
+	$excerpt = wp_html_excerpt($excerpt, 252, '&#8230;');
 
 	$post_title = apply_filters('the_title', $post->post_title, $post->ID);
 	$post_title = strip_tags($post_title);
@@ -1848,6 +1845,7 @@ function pingback($content, $post_ID) {
 		endif;
 	endforeach;
 
+	$post_links = array_unique( $post_links );
 	do_action_ref_array( 'pre_ping', array( &$post_links, &$pung, $post_ID ) );
 
 	foreach ( (array) $post_links as $pagelinkedto ) {
@@ -2048,12 +2046,7 @@ function clean_comment_cache($ids) {
 	foreach ( (array) $ids as $id )
 		wp_cache_delete($id, 'comment');
 
-	if ( function_exists( 'wp_cache_incr' ) ) {
-		wp_cache_incr( 'last_changed', 1, 'comment' );
-	} else {
-		$last_changed = wp_cache_get( 'last_changed', 'comment' );
-		wp_cache_set( 'last_changed', $last_changed + 1, 'comment' );
-	}
+	wp_cache_set( 'last_changed', microtime(), 'comment' );
 }
 
 /**
