@@ -505,11 +505,13 @@ function populate_options() {
 		else
 			$autoload = 'yes';
 
+		$option = $wpdb->escape($option);
 		if ( is_array($value) )
 			$value = serialize($value);
+		$value = $wpdb->escape($value);
 		if ( !empty($insert) )
 			$insert .= ', ';
-		$insert .= $wpdb->prepare( "(%s, %s, %s)", $option, $value, $autoload );
+		$insert .= "('$option', '$value', '$autoload')";
 	}
 
 	if ( !empty($insert) )
@@ -534,7 +536,7 @@ function populate_options() {
 		'can_compress_scripts', 'page_uris', 'update_core', 'update_plugins', 'update_themes', 'doing_cron',
 		'random_seed', 'rss_excerpt_length', 'secret', 'use_linksupdate', 'default_comment_status_page',
 		'wporg_popular_tags', 'what_to_show', 'rss_language', 'language', 'enable_xmlrpc', 'enable_app',
-		'embed_autourls', 'default_post_edit_rows',
+		'autoembed_urls', 'default_post_edit_rows',
 	);
 	foreach ( $unusedoptions as $option )
 		delete_option($option);
@@ -919,11 +921,13 @@ We hope you enjoy your new site. Thanks!
 
 	$insert = '';
 	foreach ( $sitemeta as $meta_key => $meta_value ) {
+		$meta_key = $wpdb->escape( $meta_key );
 		if ( is_array( $meta_value ) )
 			$meta_value = serialize( $meta_value );
+		$meta_value = $wpdb->escape( $meta_value );
 		if ( !empty( $insert ) )
 			$insert .= ', ';
-		$insert .= $wpdb->prepare( "( %d, %s, %s)", $network_id, $meta_key, $meta_value );
+		$insert .= "( $network_id, '$meta_key', '$meta_value')";
 	}
 	$wpdb->query( "INSERT INTO $wpdb->sitemeta ( site_id, meta_key, meta_value ) VALUES " . $insert );
 

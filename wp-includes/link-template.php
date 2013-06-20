@@ -13,7 +13,7 @@
  * @uses apply_filters() Calls 'the_permalink' filter on the permalink string.
  */
 function the_permalink() {
-	echo esc_url( apply_filters( 'the_permalink', get_permalink() ) );
+	echo apply_filters('the_permalink', get_permalink());
 }
 
 /**
@@ -301,9 +301,9 @@ function get_attachment_link( $post = null, $leavename = false ) {
 	$link = false;
 
 	$post = get_post( $post );
-	$parent = ( $post->post_parent > 0 && $post->post_parent != $post->ID ) ? get_post( $post->post_parent ) : false;
 
-	if ( $wp_rewrite->using_permalinks() && $parent ) {
+	if ( $wp_rewrite->using_permalinks() && ( $post->post_parent > 0 ) && ( $post->post_parent != $post->ID ) ) {
+		$parent = get_post($post->post_parent);
 		if ( 'page' == $parent->post_type )
 			$parentlink = _get_page_link( $post->post_parent ); // Ignores page_on_front
 		else
@@ -867,10 +867,9 @@ function get_post_type_archive_feed_link( $post_type, $feed = '' ) {
 
 	if ( ! $link = get_post_type_archive_link( $post_type ) )
 		return false;
-
 	$post_type_obj = get_post_type_object( $post_type );
-	if ( get_option( 'permalink_structure' ) && is_array( $post_type_obj->rewrite ) && $post_type_obj->rewrite['feeds'] ) {
-		$link = trailingslashit( $link );
+	if ( $post_type_obj->rewrite['feeds'] && get_option( 'permalink_structure' ) ) {
+		$link = trailingslashit($link);
 		$link .= 'feed/';
 		if ( $feed != $default_feed )
 			$link .= "$feed/";
@@ -1450,13 +1449,13 @@ function get_pagenum_link($pagenum = 1, $escape = true ) {
 		}
 
 		$request = preg_replace( "|$wp_rewrite->pagination_base/\d+/?$|", '', $request);
-		$request = preg_replace( '|^' . preg_quote( $wp_rewrite->index, '|' ) . '|i', '', $request);
+		$request = preg_replace( '|^index\.php|i', '', $request);
 		$request = ltrim($request, '/');
 
 		$base = trailingslashit( get_bloginfo( 'url' ) );
 
 		if ( $wp_rewrite->using_index_permalinks() && ( $pagenum > 1 || '' != $request ) )
-			$base .= $wp_rewrite->index . '/';
+			$base .= 'index.php/';
 
 		if ( $pagenum > 1 ) {
 			$request = ( ( !empty( $request ) ) ? trailingslashit( $request ) : $request ) . user_trailingslashit( $wp_rewrite->pagination_base . "/" . $pagenum, 'paged' );
@@ -1920,7 +1919,7 @@ function get_home_url( $blog_id = null, $path = '', $scheme = null ) {
 
 	$url = set_url_scheme( $url, $scheme );
 
-	if ( $path && is_string( $path ) )
+	if ( ! empty( $path ) && is_string( $path ) && strpos( $path, '..' ) === false )
 		$url .= '/' . ltrim( $path, '/' );
 
 	return apply_filters( 'home_url', $url, $path, $orig_scheme, $blog_id );
@@ -1972,7 +1971,7 @@ function get_site_url( $blog_id = null, $path = '', $scheme = null ) {
 
 	$url = set_url_scheme( $url, $scheme );
 
-	if ( $path && is_string( $path ) )
+	if ( ! empty( $path ) && is_string( $path ) && strpos( $path, '..' ) === false )
 		$url .= '/' . ltrim( $path, '/' );
 
 	return apply_filters( 'site_url', $url, $path, $scheme, $blog_id );
@@ -2006,7 +2005,7 @@ function admin_url( $path = '', $scheme = 'admin' ) {
 function get_admin_url( $blog_id = null, $path = '', $scheme = 'admin' ) {
 	$url = get_site_url($blog_id, 'wp-admin/', $scheme);
 
-	if ( $path && is_string( $path ) )
+	if ( !empty( $path ) && is_string( $path ) && strpos( $path, '..' ) === false )
 		$url .= ltrim( $path, '/' );
 
 	return apply_filters( 'admin_url', $url, $path, $blog_id );
@@ -2024,7 +2023,7 @@ function get_admin_url( $blog_id = null, $path = '', $scheme = 'admin' ) {
 function includes_url($path = '') {
 	$url = site_url() . '/' . WPINC . '/';
 
-	if ( $path && is_string( $path ) )
+	if ( !empty($path) && is_string($path) && strpos($path, '..') === false )
 		$url .= ltrim($path, '/');
 
 	return apply_filters('includes_url', $url, $path);
@@ -2042,7 +2041,7 @@ function includes_url($path = '') {
 function content_url($path = '') {
 	$url = set_url_scheme( WP_CONTENT_URL );
 
-	if ( $path && is_string( $path ) )
+	if ( !empty($path) && is_string($path) && strpos($path, '..') === false )
 		$url .= '/' . ltrim($path, '/');
 
 	return apply_filters('content_url', $url, $path);
@@ -2081,7 +2080,7 @@ function plugins_url($path = '', $plugin = '') {
 			$url .= '/' . ltrim($folder, '/');
 	}
 
-	if ( $path && is_string( $path ) )
+	if ( !empty($path) && is_string($path) && strpos($path, '..') === false )
 		$url .= '/' . ltrim($path, '/');
 
 	return apply_filters('plugins_url', $url, $path, $plugin);
@@ -2112,7 +2111,7 @@ function network_site_url( $path = '', $scheme = null ) {
 	else
 		$url = set_url_scheme( 'http://' . $current_site->domain . $current_site->path, $scheme );
 
-	if ( $path && is_string( $path ) )
+	if ( ! empty( $path ) && is_string( $path ) && strpos( $path, '..' ) === false )
 		$url .= ltrim( $path, '/' );
 
 	return apply_filters( 'network_site_url', $url, $path, $scheme );
@@ -2148,7 +2147,7 @@ function network_home_url( $path = '', $scheme = null ) {
 	else
 		$url = set_url_scheme( 'http://' . $current_site->domain . $current_site->path, $scheme );
 
-	if ( $path && is_string( $path ) )
+	if ( ! empty( $path ) && is_string( $path ) && strpos( $path, '..' ) === false )
 		$url .= ltrim( $path, '/' );
 
 	return apply_filters( 'network_home_url', $url, $path, $orig_scheme);
@@ -2170,7 +2169,7 @@ function network_admin_url( $path = '', $scheme = 'admin' ) {
 
 	$url = network_site_url('wp-admin/network/', $scheme);
 
-	if ( $path && is_string( $path ) )
+	if ( !empty($path) && is_string($path) && strpos($path, '..') === false )
 		$url .= ltrim($path, '/');
 
 	return apply_filters('network_admin_url', $url, $path);
@@ -2189,7 +2188,7 @@ function network_admin_url( $path = '', $scheme = 'admin' ) {
 function user_admin_url( $path = '', $scheme = 'admin' ) {
 	$url = network_site_url('wp-admin/user/', $scheme);
 
-	if ( $path && is_string( $path ) )
+	if ( !empty($path) && is_string($path) && strpos($path, '..') === false )
 		$url .= ltrim($path, '/');
 
 	return apply_filters('user_admin_url', $url, $path);

@@ -60,15 +60,6 @@ class WP_Text_Diff_Renderer_Table extends Text_Diff_Renderer {
 	var $inline_diff_renderer = 'WP_Text_Diff_Renderer_inline';
 
 	/**
-	 * Should we show the split view or not
-	 *
-	 * @var string
-	 * @access protected
-	 * @since 3.6.0
-	 */
-	var $_show_split_view = true;
-
-	/**
 	 * Constructor - Call parent constructor with params array.
 	 *
 	 * This will set class properties based on the key value pairs in the array.
@@ -79,8 +70,6 @@ class WP_Text_Diff_Renderer_Table extends Text_Diff_Renderer {
 	 */
 	function __construct( $params = array() ) {
 		parent::__construct( $params );
-		if ( isset( $params[ 'show_split_view' ] ) )
-			$this->_show_split_view = $params[ 'show_split_view' ];
 	}
 
 	/**
@@ -109,8 +98,7 @@ class WP_Text_Diff_Renderer_Table extends Text_Diff_Renderer {
 	 * @return string
 	 */
 	function addedLine( $line ) {
-		return "<td class='diff-addedline'>{$line}</td>";
-
+		return "<td>+</td><td class='diff-addedline'>{$line}</td>";
 	}
 
 	/**
@@ -120,7 +108,7 @@ class WP_Text_Diff_Renderer_Table extends Text_Diff_Renderer {
 	 * @return string
 	 */
 	function deletedLine( $line ) {
-		return "<td class='diff-deletedline'>{$line}</td>";
+		return "<td>-</td><td class='diff-deletedline'>{$line}</td>";
 	}
 
 	/**
@@ -130,7 +118,7 @@ class WP_Text_Diff_Renderer_Table extends Text_Diff_Renderer {
 	 * @return string
 	 */
 	function contextLine( $line ) {
-		return "<td class='diff-context'>{$line}</td>";
+		return "<td> </td><td class='diff-context'>{$line}</td>";
 	}
 
 	/**
@@ -139,7 +127,7 @@ class WP_Text_Diff_Renderer_Table extends Text_Diff_Renderer {
 	 * @return string
 	 */
 	function emptyLine() {
-		return '<td>&nbsp;</td>';
+		return '<td colspan="2">&nbsp;</td>';
 	}
 
 	/**
@@ -155,11 +143,7 @@ class WP_Text_Diff_Renderer_Table extends Text_Diff_Renderer {
 		foreach ($lines as $line) {
 			if ( $encode )
 				$line = htmlspecialchars( $line );
-			if ( $this->_show_split_view ) {
-				$r .= '<tr>' . $this->emptyLine() . $this->emptyLine() . $this->addedLine( $line ) . "</tr>\n";
-			} else {
-				$r .= '<tr>' . $this->addedLine( $line ) . "</tr>\n";
-			}
+			$r .= '<tr>' . $this->emptyLine() . $this->addedLine( $line ) . "</tr>\n";
 		}
 		return $r;
 	}
@@ -177,12 +161,7 @@ class WP_Text_Diff_Renderer_Table extends Text_Diff_Renderer {
 		foreach ($lines as $line) {
 			if ( $encode )
 				$line = htmlspecialchars( $line );
-			if ( $this->_show_split_view ) {
-				$r .= '<tr>' . $this->deletedLine( $line ) . $this->emptyLine() . $this->emptyLine() . "</tr>\n";
-			} else {
-				$r .= '<tr>' . $this->deletedLine( $line ) . "</tr>\n";
-			}
-
+			$r .= '<tr>' . $this->deletedLine( $line ) . $this->emptyLine() . "</tr>\n";
 		}
 		return $r;
 	}
@@ -200,11 +179,8 @@ class WP_Text_Diff_Renderer_Table extends Text_Diff_Renderer {
 		foreach ($lines as $line) {
 			if ( $encode )
 				$line = htmlspecialchars( $line );
-			if (  $this->_show_split_view ) {
-				$r .= '<tr>' . $this->contextLine( $line ) . $this->emptyLine() . $this->contextLine( $line )  . "</tr>\n";
-			} else {
-				$r .= '<tr>' . $this->contextLine( $line ) . "</tr>\n";
-			}
+			$r .= '<tr>' .
+				$this->contextLine( $line ) . $this->contextLine( $line ) . "</tr>\n";
 		}
 		return $r;
 	}
@@ -288,11 +264,7 @@ class WP_Text_Diff_Renderer_Table extends Text_Diff_Renderer {
 			} elseif ( $final_rows[$row] < 0 ) { // Final is blank. This is really a deleted row.
 				$r .= $this->_deleted( array($orig_line), false );
 			} else { // A true changed row.
-				if ( $this->_show_split_view ) {
-					$r .= '<tr>' . $this->deletedLine( $orig_line ) . $this->emptyLine() . $this->addedLine( $final_line ) . "</tr>\n";
-				} else {
-					$r .= '<tr>' . $this->deletedLine( $orig_line ) . "</tr><tr>" . $this->addedLine( $final_line ) . "</tr>\n";
-				}
+				$r .= '<tr>' . $this->deletedLine( $orig_line ) . $this->addedLine( $final_line ) . "</tr>\n";
 			}
 		}
 

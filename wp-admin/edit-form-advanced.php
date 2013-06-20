@@ -112,6 +112,9 @@ if ( 'attachment' == $post_type ) {
 	add_meta_box( 'submitdiv', __( 'Publish' ), 'post_submit_meta_box', null, 'side', 'core' );
 }
 
+if ( current_theme_supports( 'post-formats' ) && post_type_supports( $post_type, 'post-formats' ) )
+	add_meta_box( 'formatdiv', _x( 'Format', 'post format' ), 'post_format_meta_box', null, 'side', 'core' );
+
 // all taxonomies
 foreach ( get_object_taxonomies( $post ) as $tax_name ) {
 	$taxonomy = get_taxonomy($tax_name);
@@ -126,94 +129,11 @@ foreach ( get_object_taxonomies( $post ) as $tax_name ) {
 		add_meta_box($tax_name . 'div', $label, 'post_categories_meta_box', null, 'side', 'core', array( 'taxonomy' => $tax_name ));
 }
 
-// post format
-$format_class = '';
-$post_format = '';
-$post_format_options = '';
-$show_post_format_ui = false;
-if ( post_type_supports( $post_type, 'post-formats' ) && apply_filters( 'enable_post_format_ui', true, $post ) ) {
-	wp_enqueue_script( 'post-formats' );
-	wp_enqueue_script( 'wp-mediaelement' );
-	wp_enqueue_style( 'wp-mediaelement' );
-	$post_format = get_post_format();
-
-	if ( ! $post_format ) {
-		$post_format = 'standard';
-
-		if ( ! empty( $_REQUEST['format'] ) && in_array( $_REQUEST['format'], get_post_format_slugs() ) )
-			$post_format = $_REQUEST['format'];
-	}
-
-	$user_wants = get_user_option( 'post_formats_' . $post_type );
-	if ( false !== $user_wants ) {
-		// User wants what user gets.
-		$show_post_format_ui = (bool) $user_wants;
-	} else {
-		// UI is shown when the theme supports formats, or if the site has formats assigned to posts.
-		$show_post_format_ui = current_theme_supports( 'post-formats' ) || get_terms( 'post_format', array( 'number' => 1 ) );
-	}
-
-	$format_class = " class='wp-format-{$post_format}'";
-
-	$all_post_formats = array(
-		'standard' => array (
-			'description' => __( 'Use the editor below to compose your post.' )
-		),
-		'image' => array (
-			'description' => __( 'Select or upload an image for your post.' )
-		),
-		'gallery' => array (
-			'description' => __( 'Use the Add Media button to select or upload images for your gallery.' )
-		),
-		'link' => array (
-			'description' => __( 'Add a link title and destination URL. Use the editor to compose optional text to accompany the link.' )
-		),
-		'video' => array (
-			'description' => __( 'Select or upload a video, or paste a video embed code into the box.' )
-		),
-		'audio' => array (
-			'description' => __( 'Select or upload an audio file, or paste an audio embed code into the box.' )
-		),
-		'chat' => array (
-			'description' => __( 'Copy a chat or Q&A transcript into the editor.' )
-		),
-		'status' => array (
-			'description' => __( 'Use the editor to compose a status update. What&#8217;s new?' )
-		),
-		'quote' => array (
-			'description' => __( 'Add a source name and link if you have them. Use the editor to compose the quote.' )
-		),
-		'aside' => array (
-			'description' => __( 'Use the editor to share a quick thought or side topic.' )
-		)
-	);
-
-	foreach ( $all_post_formats as $slug => $attr ) {
-		$class = '';
-		if ( $post_format == $slug ) {
-			$class = 'class="active"';
-			$active_post_type_slug = $slug;
-		}
-
-		$post_format_options .= '<a ' . $class . ' href="?format=' . $slug . '" data-description="' . $attr['description'] . '" data-wp-format="' . $slug . '" title="' . ucfirst( $slug ) . '"><div class="' . $slug . '"></div><span class="post-format-title">' . ucfirst( $slug ) . '</span></a>';
-	}
-
-	$current_post_format = array( 'currentPostFormat' => esc_html( $active_post_type_slug ) );
-	wp_localize_script( 'post-formats', 'postFormats', $current_post_format );
-}
-
 if ( post_type_supports($post_type, 'page-attributes') )
 	add_meta_box('pageparentdiv', 'page' == $post_type ? __('Page Attributes') : __('Attributes'), 'page_attributes_meta_box', null, 'side', 'core');
 
-$audio_post_support = $video_post_support = false;
-$theme_support = current_theme_supports( 'post-thumbnails', $post_type ) && post_type_supports( $post_type, 'thumbnail' );
-if ( 'attachment' === $post_type && ! empty( $post->post_mime_type ) ) {
-	$audio_post_support = 0 === strpos( $post->post_mime_type, 'audio/' ) && current_theme_supports( 'post-thumbnails', 'attachment:audio' ) && post_type_supports( 'attachment:audio', 'thumbnail' );
-	$video_post_support = 0 === strpos( $post->post_mime_type, 'video/' ) && current_theme_supports( 'post-thumbnails', 'attachment:video' ) && post_type_supports( 'attachment:video', 'thumbnail' );
-}
-
-if ( $theme_support || $audio_post_support || $video_post_support )
-	add_meta_box('postimagediv', __('Featured Image'), 'post_thumbnail_meta_box', null, 'side', 'low');
+if ( current_theme_supports( 'post-thumbnails', $post_type ) && post_type_supports( $post_type, 'thumbnail' ) )
+		add_meta_box('postimagediv', __('Featured Image'), 'post_thumbnail_meta_box', null, 'side', 'low');
 
 if ( post_type_supports($post_type, 'excerpt') )
 	add_meta_box('postexcerpt', __('Excerpt'), 'post_excerpt_meta_box', null, 'normal', 'core');
@@ -239,17 +159,8 @@ if ( post_type_supports($post_type, 'author') ) {
 		add_meta_box('authordiv', __('Author'), 'post_author_meta_box', null, 'normal', 'core');
 }
 
-if ( post_type_supports($post_type, 'revisions') && 'auto-draft' != $post->post_status ) {
-	$revisions = wp_get_post_revisions( $post_ID );
-
-	// Check if the revisions have been upgraded
-	if ( ! empty( $revisions ) && _wp_get_post_revision_version( end( $revisions ) ) < 1 )
-		_wp_upgrade_revisions_of_post( $post, $revisions );
-
-	// We should aim to show the revisions metabox only when there are revisions.
-	if ( count( $revisions ) > 1 )
-		add_meta_box('revisionsdiv', __('Revisions'), 'post_revisions_meta_box', null, 'normal', 'core');
-}
+if ( post_type_supports($post_type, 'revisions') && 0 < $post_ID && wp_get_post_revisions( $post_ID ) )
+	add_meta_box('revisionsdiv', __('Revisions'), 'post_revisions_meta_box', null, 'normal', 'core');
 
 do_action('add_meta_boxes', $post_type, $post);
 do_action('add_meta_boxes_' . $post_type, $post);
@@ -380,20 +291,10 @@ if ( isset( $post_new_file ) && current_user_can( $post_type_object->cap->create
 	echo ' <a href="' . esc_url( $post_new_file ) . '" class="add-new-h2">' . esc_html( $post_type_object->labels->add_new ) . '</a>';
 ?></h2>
 <?php if ( $notice ) : ?>
-<div id="notice" class="error"><p id="has-newer-autosave"><?php echo $notice ?></p></div>
+<div id="notice" class="error"><p><?php echo $notice ?></p></div>
 <?php endif; ?>
 <?php if ( $message ) : ?>
 <div id="message" class="updated"><p><?php echo $message; ?></p></div>
-<?php endif; ?>
-<div id="lost-connection-notice" class="error hidden">
-	<p><?php _e("You have lost your connection with the server, and saving has been disabled. This message will vanish once you've reconnected."); ?></p>
-</div>
-<?php if ( ! empty( $post_format_options ) ) : ?>
-<div class="wp-post-format-ui<?php if ( ! $show_post_format_ui ) echo ' no-ui' ?>">
-	<div class="post-format-options">
-		<?php echo $post_format_options; ?>
-	</div>
-</div>
 <?php endif; ?>
 <form name="post" action="post.php" method="post" id="post"<?php do_action('post_edit_form_tag'); ?>>
 <?php wp_nonce_field($nonce_action); ?>
@@ -403,7 +304,7 @@ if ( isset( $post_new_file ) && current_user_can( $post_type_object->cap->create
 <input type="hidden" id="post_author" name="post_author" value="<?php echo esc_attr( $post->post_author ); ?>" />
 <input type="hidden" id="post_type" name="post_type" value="<?php echo esc_attr( $post_type ) ?>" />
 <input type="hidden" id="original_post_status" name="original_post_status" value="<?php echo esc_attr( $post->post_status) ?>" />
-<input type="hidden" id="referredby" name="referredby" value="<?php echo esc_url(wp_get_referer()); ?>" />
+<input type="hidden" id="referredby" name="referredby" value="<?php echo esc_url(stripslashes(wp_get_referer())); ?>" />
 <?php if ( ! empty( $active_post_lock ) ) { ?>
 <input type="hidden" id="active_post_lock" value="<?php echo esc_attr( implode( ':', $active_post_lock ) ); ?>" />
 <?php
@@ -419,13 +320,9 @@ wp_nonce_field( 'closedpostboxes', 'closedpostboxesnonce', false );
 ?>
 
 <div id="poststuff">
+
 <div id="post-body" class="metabox-holder columns-<?php echo 1 == get_current_screen()->get_columns() ? '1' : '2'; ?>">
-<div id="post-body-content"<?php echo $format_class; ?>>
-<?php if ( ! empty( $all_post_formats ) ) : ?>
-<div class="wp-post-format-ui<?php if ( ! $show_post_format_ui ) echo ' no-ui' ?>">
-	<div class="post-format-change"><span class="icon <?php echo esc_attr( 'wp-format-' . $post_format ); ?>"></span> <span class="post-format-description"><?php echo $all_post_formats[$post_format]['description']; ?></span></div>
-</div>
-<?php endif; ?>
+<div id="post-body-content">
 <?php if ( post_type_supports($post_type, 'title') ) { ?>
 <div id="titlediv">
 <div id="titlewrap">
@@ -439,12 +336,10 @@ $shortlink = wp_get_shortlink($post->ID, 'post');
 if ( !empty($shortlink) )
     $sample_permalink_html .= '<input id="shortlink" type="hidden" value="' . esc_attr($shortlink) . '" /><a href="#" class="button button-small" onclick="prompt(&#39;URL:&#39;, jQuery(\'#shortlink\').val()); return false;">' . __('Get Shortlink') . '</a>';
 
-if ( $post_type_object->public && ! ( 'pending' == get_post_status( $post ) && !current_user_can( $post_type_object->cap->publish_posts ) ) ) {
-	$has_sample_permalink = $sample_permalink_html && 'auto-draft' != $post->post_status;
-?>
+if ( $post_type_object->public && ! ( 'pending' == get_post_status( $post ) && !current_user_can( $post_type_object->cap->publish_posts ) ) ) { ?>
 	<div id="edit-slug-box" class="hide-if-no-js">
 	<?php
-		if ( $has_sample_permalink )
+		if ( $sample_permalink_html && 'auto-draft' != $post->post_status )
 			echo $sample_permalink_html;
 	?>
 	</div>
@@ -459,25 +354,14 @@ wp_nonce_field( 'samplepermalink', 'samplepermalinknonce', false );
 <?php
 }
 
-if ( has_action( 'edit_form_after_title' ) ) {
-	echo '<div class="edit-form-section">';
-	do_action( 'edit_form_after_title' );
-	echo '</div>';
-}
-
-// post format fields
-if ( post_type_supports( $post_type, 'post-formats' ) && apply_filters( 'enable_post_format_ui', true, $post ) )
-	require_once( './includes/post-formats.php' );
+do_action( 'edit_form_after_title' );
 
 if ( post_type_supports($post_type, 'editor') ) {
 ?>
-<div id="postdivrich" class="postarea edit-form-section">
+<div id="postdivrich" class="postarea">
 
-<?php wp_editor( $post->post_content, 'content', array(
-	'dfw' => true,
-	'tabfocus_elements' => 'insert-media-button,save-post',
-	'editor_height' => in_array( $post_format, array( 'status', 'aside' ) ) ? 120 : 360
-) ); ?>
+<?php wp_editor($post->post_content, 'content', array('dfw' => true, 'tabfocus_elements' => 'sample-permalink,post-preview', 'editor_height' => 360) ); ?>
+
 <table id="post-status-info" cellspacing="0"><tbody><tr>
 	<td id="wp-word-count"><?php printf( __( 'Word count: %s' ), '<span class="word-count">0</span>' ); ?></td>
 	<td class="autosave-info">
@@ -497,14 +381,9 @@ if ( post_type_supports($post_type, 'editor') ) {
 </tr></tbody></table>
 
 </div>
-<?php }
+<?php } ?>
 
-if ( has_action( 'edit_form_after_editor' ) ) {
-	echo '<div class="edit-form-section">';
-	do_action( 'edit_form_after_editor' );
-	echo '</div>';
-}
-?>
+<?php do_action( 'edit_form_after_editor' ); ?>
 </div><!-- /post-body-content -->
 
 <div id="postbox-container-1" class="postbox-container">

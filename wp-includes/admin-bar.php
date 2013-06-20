@@ -8,8 +8,8 @@
 /**
  * Instantiate the admin bar object and set it up as a global for access elsewhere.
  *
- * UNHOOKING THIS FUNCTION WILL NOT PROPERLY REMOVE THE ADMIN BAR.
- * For that, use show_admin_bar(false) or the 'show_admin_bar' filter.
+ * To hide the admin bar, you're looking in the wrong place. Unhooking this function will not
+ * properly remove the admin bar. For that, use show_admin_bar(false) or the show_admin_bar filter.
  *
  * @since 3.1.0
  * @access private
@@ -36,9 +36,7 @@ function _wp_admin_bar_init() {
 
 	return true;
 }
-// Don't remove. Wrong way to disable.
-add_action( 'template_redirect', '_wp_admin_bar_init', 0 );
-add_action( 'admin_init', '_wp_admin_bar_init' );
+add_action( 'init', '_wp_admin_bar_init' ); // Don't remove. Wrong way to disable.
 
 /**
  * Render the admin bar to the page based on the $wp_admin_bar->menu member var.
@@ -176,8 +174,8 @@ function wp_admin_bar_my_account_menu( $wp_admin_bar ) {
 	$user_info  = get_avatar( $user_id, 64 );
 	$user_info .= "<span class='display-name'>{$current_user->display_name}</span>";
 
-	if ( $current_user->display_name !== $current_user->user_login )
-		$user_info .= "<span class='username'>{$current_user->user_login}</span>";
+	if ( $current_user->display_name !== $current_user->user_nicename )
+		$user_info .= "<span class='username'>{$current_user->user_nicename}</span>";
 
 	$wp_admin_bar->add_menu( array(
 		'parent' => 'user-actions',
@@ -229,7 +227,9 @@ function wp_admin_bar_site_menu( $wp_admin_bar ) {
 		$blogname = sprintf( __('Global Dashboard: %s'), esc_html( $current_site->site_name ) );
 	}
 
-	$title = wp_html_excerpt( $blogname, 40, '&hellip;' );
+	$title = wp_html_excerpt( $blogname, 40 );
+	if ( $title != $blogname )
+		$title = trim( $title ) . '&hellip;';
 
 	$wp_admin_bar->add_menu( array(
 		'id'    => 'site-name',

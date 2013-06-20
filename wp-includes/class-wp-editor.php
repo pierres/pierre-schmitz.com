@@ -176,7 +176,7 @@ final class _WP_Editors {
 				$qtInit = array_merge($qtInit, $set['quicktags']);
 
 			if ( empty($qtInit['buttons']) )
-				$qtInit['buttons'] = 'strong,em,link,block,del,ins,img,ul,ol,li,code,more,close';
+				$qtInit['buttons'] = 'strong,em,link,block,del,ins,img,ul,ol,li,code,more,spell,close';
 
 			if ( $set['dfw'] )
 				$qtInit['buttons'] .= ',fullscreen';
@@ -396,16 +396,8 @@ final class _WP_Editors {
 
 			$body_class = $editor_id;
 
-			if ( $post = get_post() ) {
-				$body_class .= ' post-type-' . sanitize_html_class( $post->post_type ) . ' post-status-' . sanitize_html_class( $post->post_status );
-				if ( post_type_supports( $post->post_type, 'post-formats' ) ) {
-					$post_format = get_post_format( $post );
-					if ( $post_format && ! is_wp_error( $post_format ) )
-						$body_class .= ' post-format-' . sanitize_html_class( $post_format );
-					else
-						$body_class .= ' post-format-standard';
-				}
-			}
+			if ( $post = get_post() )
+				$body_class .= ' post-type-' . $post->post_type;
 
 			if ( !empty($set['tinymce']['body_class']) ) {
 				$body_class .= ' ' . $set['tinymce']['body_class'];

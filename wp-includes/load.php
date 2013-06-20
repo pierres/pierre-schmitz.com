@@ -27,6 +27,7 @@ function wp_unregister_GLOBALS() {
 	$input = array_merge( $_GET, $_POST, $_COOKIE, $_SERVER, $_ENV, $_FILES, isset( $_SESSION ) && is_array( $_SESSION ) ? $_SESSION : array() );
 	foreach ( $input as $k => $v )
 		if ( !in_array( $k, $no_unset ) && isset( $GLOBALS[$k] ) ) {
+			$GLOBALS[$k] = null;
 			unset( $GLOBALS[$k] );
 		}
 }
@@ -513,8 +514,7 @@ function wp_get_active_and_valid_plugins() {
  */
 function wp_set_internal_encoding() {
 	if ( function_exists( 'mb_internal_encoding' ) ) {
-		$charset = get_option( 'blog_charset' );
-		if ( ! $charset || ! @mb_internal_encoding( $charset ) )
+		if ( !@mb_internal_encoding( get_option( 'blog_charset' ) ) )
 			mb_internal_encoding( 'UTF-8' );
 	}
 }

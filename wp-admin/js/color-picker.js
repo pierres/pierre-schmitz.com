@@ -16,12 +16,11 @@
 			palettes: true
 		},
 		_create: function() {
-			// bail early for unsupported Iris.
-			if ( ! $.support.iris )
+			// bail early for IE < 8
+			if ( $.browser.msie && parseInt( $.browser.version, 10 ) < 8 )
 				return;
 			var self = this;
 			var el = self.element;
-
 			$.extend( self.options, el.data() );
 
 			self.initialValue = el.val();

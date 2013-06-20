@@ -651,9 +651,9 @@ if ( !function_exists('wp_set_auth_cookie') ) :
  */
 function wp_set_auth_cookie($user_id, $remember = false, $secure = '') {
 	if ( $remember ) {
-		$expiration = $expire = time() + apply_filters('auth_cookie_expiration', 14 * DAY_IN_SECONDS, $user_id, $remember);
+		$expiration = $expire = time() + apply_filters('auth_cookie_expiration', 1209600, $user_id, $remember);
 	} else {
-		$expiration = time() + apply_filters('auth_cookie_expiration', 2 * DAY_IN_SECONDS, $user_id, $remember);
+		$expiration = time() + apply_filters('auth_cookie_expiration', 172800, $user_id, $remember);
 		$expire = 0;
 	}
 
@@ -816,8 +816,7 @@ function check_admin_referer($action = -1, $query_arg = '_wpnonce') {
 	}
 	do_action('check_admin_referer', $action, $result);
 	return $result;
-}
-endif;
+}endif;
 
 if ( !function_exists('check_ajax_referer') ) :
 /**
@@ -990,10 +989,6 @@ function wp_notify_postauthor( $comment_id, $comment_type = '' ) {
 	$comment = get_comment( $comment_id );
 	$post    = get_post( $comment->comment_post_ID );
 	$author  = get_userdata( $post->post_author );
-
-	// The post author is no longer a member of the blog
-	if ( ! is_user_member_of_blog( $post->post_author ) )
-		return false;
 
 	// The comment was left by the author
 	if ( $comment->user_id == $post->post_author )
@@ -1197,24 +1192,27 @@ if ( !function_exists('wp_new_user_notification') ) :
 function wp_new_user_notification($user_id, $plaintext_pass = '') {
 	$user = get_userdata( $user_id );
 
+	$user_login = stripslashes($user->user_login);
+	$user_email = stripslashes($user->user_email);
+
 	// The blogname option is escaped with esc_html on the way into the database in sanitize_option
 	// we want to reverse this for the plain text arena of emails.
 	$blogname = wp_specialchars_decode(get_option('blogname'), ENT_QUOTES);
 
 	$message  = sprintf(__('New user registration on your site %s:'), $blogname) . "\r\n\r\n";
-	$message .= sprintf(__('Username: %s'), $user->user_login) . "\r\n\r\n";
-	$message .= sprintf(__('E-mail: %s'), $user->user_email) . "\r\n";
+	$message .= sprintf(__('Username: %s'), $user_login) . "\r\n\r\n";
+	$message .= sprintf(__('E-mail: %s'), $user_email) . "\r\n";
 
 	@wp_mail(get_option('admin_email'), sprintf(__('[%s] New User Registration'), $blogname), $message);
 
 	if ( empty($plaintext_pass) )
 		return;
 
-	$message  = sprintf(__('Username: %s'), $user->user_login) . "\r\n";
+	$message  = sprintf(__('Username: %s'), $user_login) . "\r\n";
 	$message .= sprintf(__('Password: %s'), $plaintext_pass) . "\r\n";
 	$message .= wp_login_url() . "\r\n";
 
-	wp_mail($user->user_email, sprintf(__('[%s] Your username and password'), $blogname), $message);
+	wp_mail($user_email, sprintf(__('[%s] Your username and password'), $blogname), $message);
 
 }
 endif;
@@ -1565,7 +1563,7 @@ if ( !function_exists('wp_set_password') ) :
 function wp_set_password( $password, $user_id ) {
 	global $wpdb;
 
-	$hash = wp_hash_password( trim( $password ) );
+	$hash = wp_hash_password($password);
 	$wpdb->update($wpdb->users, array('user_pass' => $hash, 'user_activation_key' => ''), array('ID' => $user_id) );
 
 	wp_cache_delete($user_id, 'users');
@@ -1710,20 +1708,16 @@ function wp_text_diff( $left_string, $right_string, $args = null ) {
 
 	$left_lines  = explode("\n", $left_string);
 	$right_lines = explode("\n", $right_string);
+
 	$text_diff = new Text_Diff($left_lines, $right_lines);
-	$renderer  = new WP_Text_Diff_Renderer_Table( $args );
+	$renderer  = new WP_Text_Diff_Renderer_Table();
 	$diff = $renderer->render($text_diff);
 
 	if ( !$diff )
 		return '';
 
 	$r  = "<table class='diff'>\n";
-
-	if ( ! empty( $args[ 'show_split_view' ] ) ) {
-		$r .= "<col class='content diffsplit left' /><col class='content diffsplit middle' /><col class='content diffsplit right' />";
-	} else {
-		$r .= "<col class='content' />";
-	}
+	$r .= "<col class='ltype' /><col class='content' /><col class='ltype' /><col class='content' />";
 
 	if ( $args['title'] || $args['title_left'] || $args['title_right'] )
 		$r .= "<thead>";
@@ -1744,4 +1738,3 @@ function wp_text_diff( $left_string, $right_string, $args = null ) {
 	return $r;
 }
 endif;
-

@@ -24,7 +24,7 @@ class WP_Theme_Install_List_Table extends WP_Themes_List_Table {
 		$search_terms = array();
 		$search_string = '';
 		if ( ! empty( $_REQUEST['s'] ) ){
-			$search_string = strtolower( wp_unslash( $_REQUEST['s'] ) );
+			$search_string = strtolower( stripslashes( $_REQUEST['s'] ) );
 			$search_terms = array_unique( array_filter( array_map( 'trim', explode( ',', $search_string ) ) ) );
 		}
 
@@ -51,7 +51,7 @@ class WP_Theme_Install_List_Table extends WP_Themes_List_Table {
 		$tabs = apply_filters( 'install_themes_tabs', $tabs );
 		$nonmenu_tabs = apply_filters( 'install_themes_nonmenu_tabs', $nonmenu_tabs );
 
-		// If a non-valid menu tab has been selected, And it's not a non-menu action.
+		// If a non-valid menu tab has been selected, And its not a non-menu action.
 		if ( empty( $tab ) || ( ! isset( $tabs[ $tab ] ) && ! in_array( $tab, (array) $nonmenu_tabs ) ) )
 			$tab = key( $tabs );
 
@@ -59,7 +59,7 @@ class WP_Theme_Install_List_Table extends WP_Themes_List_Table {
 
 		switch ( $tab ) {
 			case 'search':
-				$type = isset( $_REQUEST['type'] ) ? wp_unslash( $_REQUEST['type'] ) : 'term';
+				$type = isset( $_REQUEST['type'] ) ? stripslashes( $_REQUEST['type'] ) : 'term';
 				switch ( $type ) {
 					case 'tag':
 						$args['tag'] = array_map( 'sanitize_key', $search_terms );

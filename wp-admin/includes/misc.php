@@ -220,10 +220,11 @@ add_action( 'update_option_page_on_front', 'update_home_siteurl', 10, 2 );
  * @return string
  */
 function url_shorten( $url ) {
-	$short_url = str_replace( array( 'http://', 'www.' ), '', $url );
+	$short_url = str_replace( 'http://', '', stripslashes( $url ));
+	$short_url = str_replace( 'www.', '', $short_url );
 	$short_url = untrailingslashit( $short_url );
 	if ( strlen( $short_url ) > 35 )
-		$short_url = substr( $short_url, 0, 32 ) . '&hellip;';
+		$short_url = substr( $short_url, 0, 32 ) . '...';
 	return $short_url;
 }
 
@@ -560,109 +561,3 @@ function _ipad_meta() {
 	}
 }
 add_action('admin_head', '_ipad_meta');
-
-/**
- * Check lock status for posts displayed on the Posts screen
- *
- * @since 3.6
- */
-function wp_check_locked_posts( $response, $data, $screen_id ) {
-	$checked = array();
-
-	if ( 'edit-post' == $screen_id && array_key_exists( 'wp-check-locked', $data ) && is_array( $data['wp-check-locked'] ) ) {
-		foreach ( $data['wp-check-locked'] as $key ) {
-			$post_id = (int) substr( $key, 5 );
-
-			if ( current_user_can( 'edit_post', $post_id ) && ( $user_id = wp_check_post_lock( $post_id ) ) && ( $user = get_userdata( $user_id ) ) ) {
-				$send = array( 'text' => sprintf( __( '%s is currently editing' ), $user->display_name ) );
-
-				if ( ( $avatar = get_avatar( $user->ID, 18 ) ) && preg_match( "|src='([^']+)'|", $avatar, $matches ) )
-					$send['avatar_src'] = $matches[1];
-
-				$checked[$key] = $send;
-			}
-		}
-	}
-
-	if ( ! empty( $checked ) )
-		$response['wp-check-locked'] = $checked;
-
-	return $response;
-}
-add_filter( 'heartbeat_received', 'wp_check_locked_posts', 10, 3 );
-
-/**
- * Check lock status on the New/Edit Post screen and refresh the lock
- *
- * @since 3.6
- */
-function wp_refresh_post_lock( $response, $data, $screen_id ) {
-	if ( 'post' == $screen_id && array_key_exists( 'wp-refresh-post-lock', $data ) ) {
-		$received = $data['wp-refresh-post-lock'];
-		$send = array();
-
-		if ( !$post_id = absint( $received['post_id'] ) )
-			return $response;
-
-		if ( !current_user_can('edit_post', $post_id) )
-			return $response;
-
-		if ( ( $user_id = wp_check_post_lock( $post_id ) ) && ( $user = get_userdata( $user_id ) ) ) {
-			$error = array(
-				'text' => sprintf( __( '%s has taken over and is currently editing.' ), $user->display_name )
-			);
-			
-			if ( $avatar = get_avatar( $user->ID, 64 ) ) {
-				if ( preg_match( "|src='([^']+)'|", $avatar, $matches ) )
-					$error['avatar_src'] = $matches[1];
-			}
-
-			$send['lock_error'] = $error;
-		} else {
-			if ( $new_lock = wp_set_post_lock( $post_id ) )
-				$send['new_lock'] = implode( ':', $new_lock );
-		}
-
-		if ( ! empty( $received['post_nonce'] ) && 2 === wp_verify_nonce( $received['post_nonce'], 'update-post_' . $post_id ) ) {
-			$send['update_nonces'] = array(
-				'replace-autosavenonce' => wp_create_nonce('autosave'),
-				'replace-getpermalinknonce' => wp_create_nonce('getpermalink'),
-				'replace-samplepermalinknonce' => wp_create_nonce('samplepermalink'),
-				'replace-closedpostboxesnonce' => wp_create_nonce('closedpostboxes'),
-				'replace-_ajax_linking_nonce' => wp_create_nonce( 'internal-linking' ),
-				'replace-_wpnonce' => wp_create_nonce( 'update-post_' . $post_id ),
-			);
-		}
-
-		$response['wp-refresh-post-lock'] = $send;
-	}
-
-	return $response;
-}
-add_filter( 'heartbeat_received', 'wp_refresh_post_lock', 10, 3 );
-
-/**
- * Output the HTML for restoring the post data from DOM storage
- *
- * @since 3.6
- * @access private
- */
-function _local_storage_notice() {
-	$screen = get_current_screen();
-	if ( ! $screen || 'post' != $screen->id )
-		return;
-
-	?>
-	<div id="local-storage-notice" class="hidden">
-	<p class="local-restore">
-		<?php _e('The backup of this post in your browser is different from the version below.'); ?>
-		<a class="restore-backup" href="#"><?php _e('Restore the backup.'); ?></a>
-	</p>
-	<p class="undo-restore hidden">
-		<?php _e('Post restored successfully.'); ?>
-		<a class="undo-restore-backup" href="#"><?php _e('Undo.'); ?></a>
-	</p>
-	</div>
-	<?php
-}
-add_action( 'admin_footer', '_local_storage_notice' );

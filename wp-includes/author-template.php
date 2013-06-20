@@ -134,7 +134,7 @@ function the_author_meta($field = '', $user_id = false) {
  */
 function get_the_author_link() {
 	if ( get_the_author_meta('url') ) {
-		return '<a href="' . esc_url( get_the_author_meta('url') ) . '" title="' . esc_attr( sprintf(__("Visit %s&#8217;s website"), get_the_author()) ) . '" rel="author external">' . get_the_author() . '</a>';
+		return '<a href="' . get_the_author_meta('url') . '" title="' . esc_attr( sprintf(__("Visit %s&#8217;s website"), get_the_author()) ) . '" rel="author external">' . get_the_author() . '</a>';
 	} else {
 		return get_the_author();
 	}
@@ -200,7 +200,7 @@ function the_author_posts_link($deprecated = '') {
 		return false;
 	$link = sprintf(
 		'<a href="%1$s" title="%2$s" rel="author">%3$s</a>',
-		esc_url( get_author_posts_url( $authordata->ID, $authordata->user_nicename ) ),
+		get_author_posts_url( $authordata->ID, $authordata->user_nicename ),
 		esc_attr( sprintf( __( 'Posts by %s' ), get_the_author() ) ),
 		get_the_author()
 	);
@@ -244,7 +244,7 @@ function get_author_posts_url($author_id, $author_nicename = '') {
  * <li>optioncount (boolean) (false): Show the count in parenthesis next to the
  * author's name.</li>
  * <li>exclude_admin (boolean) (true): Exclude the 'admin' user that is
- * installed by default.</li>
+ * installed bydefault.</li>
  * <li>show_fullname (boolean) (false): Show their full names.</li>
  * <li>hide_empty (boolean) (true): Don't show authors without any posts.</li>
  * <li>feed (string) (''): If isn't empty, show links to author's feeds.</li>

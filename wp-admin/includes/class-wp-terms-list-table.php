@@ -52,7 +52,7 @@ class WP_Terms_List_Table extends WP_List_Table {
 			$tags_per_page = apply_filters( 'edit_categories_per_page', $tags_per_page ); // Old filter
 		}
 
-		$search = !empty( $_REQUEST['s'] ) ? trim( wp_unslash( $_REQUEST['s'] ) ) : '';
+		$search = !empty( $_REQUEST['s'] ) ? trim( stripslashes( $_REQUEST['s'] ) ) : '';
 
 		$args = array(
 			'search' => $search,
@@ -61,10 +61,10 @@ class WP_Terms_List_Table extends WP_List_Table {
 		);
 
 		if ( !empty( $_REQUEST['orderby'] ) )
-			$args['orderby'] = trim( wp_unslash( $_REQUEST['orderby'] ) );
+			$args['orderby'] = trim( stripslashes( $_REQUEST['orderby'] ) );
 
 		if ( !empty( $_REQUEST['order'] ) )
-			$args['order'] = trim( wp_unslash( $_REQUEST['order'] ) );
+			$args['order'] = trim( stripslashes( $_REQUEST['order'] ) );
 
 		$this->callback_args = $args;
 
@@ -136,6 +136,7 @@ class WP_Terms_List_Table extends WP_List_Table {
 		$args['offset'] = $offset = ( $page - 1 ) * $number;
 
 		// convert it to table rows
+		$out = '';
 		$count = 0;
 
 		$terms = array();
@@ -143,37 +144,37 @@ class WP_Terms_List_Table extends WP_List_Table {
 		if ( is_taxonomy_hierarchical( $taxonomy ) && !isset( $orderby ) ) {
 			// We'll need the full set of terms then.
 			$args['number'] = $args['offset'] = 0;
-		}
-		$terms = get_terms( $taxonomy, $args );
 
-		if ( empty( $terms ) ) {
-			list( $columns, $hidden ) = $this->get_column_info();
-			echo '<tr class="no-items"><td class="colspanchange" colspan="' . $this->get_column_count() . '">';
-			$this->no_items();
-			echo '</td></tr>';
-			return;
-		}
-
-		if ( is_taxonomy_hierarchical( $taxonomy ) && !isset( $orderby ) ) {
+			$terms = get_terms( $taxonomy, $args );
 			if ( !empty( $search ) ) // Ignore children on searches.
 				$children = array();
 			else
 				$children = _get_term_hierarchy( $taxonomy );
 
 			// Some funky recursion to get the job done( Paging & parents mainly ) is contained within, Skip it for non-hierarchical taxonomies for performance sake
-			$this->_rows( $taxonomy, $terms, $children, $offset, $number, $count );
+			$out .= $this->_rows( $taxonomy, $terms, $children, $offset, $number, $count );
 		} else {
 			$terms = get_terms( $taxonomy, $args );
 			foreach ( $terms as $term )
-				$this->single_row( $term );
+				$out .= $this->single_row( $term, 0, $taxonomy );
 			$count = $number; // Only displaying a single page.
+		}
+
+		if ( empty( $terms ) ) {
+			list( $columns, $hidden ) = $this->get_column_info();
+			echo '<tr class="no-items"><td class="colspanchange" colspan="' . $this->get_column_count() . '">';
+			$this->no_items();
+			echo '</td></tr>';
+		} else {
+			echo $out;
 		}
 	}
 
-	function _rows( $taxonomy, $terms, &$children, $start, $per_page, &$count, $parent = 0, $level = 0 ) {
+	function _rows( $taxonomy, $terms, &$children, $start = 0, $per_page = 20, &$count, $parent = 0, $level = 0 ) {
 
 		$end = $start + $per_page;
 
+		$output = '';
 		foreach ( $terms as $key => $term ) {
 
 			if ( $count >= $end )
@@ -198,24 +199,23 @@ class WP_Terms_List_Table extends WP_List_Table {
 
 				$num_parents = count( $my_parents );
 				while ( $my_parent = array_pop( $my_parents ) ) {
-					echo "\t";
-					$this->single_row( $my_parent, $level - $num_parents );
+					$output .=  "\t" . $this->single_row( $my_parent, $level - $num_parents, $taxonomy );
 					$num_parents--;
 				}
 			}
 
-			if ( $count >= $start ) {
-				echo "\t";
-				$this->single_row( $term, $level );
-			}
+			if ( $count >= $start )
+				$output .= "\t" . $this->single_row( $term, $level, $taxonomy );
 
 			++$count;
 
 			unset( $terms[$key] );
 
 			if ( isset( $children[$term->term_id] ) && empty( $_REQUEST['s'] ) )
-				$this->_rows( $taxonomy, $terms, $children, $start, $per_page, $count, $term->term_id, $level + 1 );
+				$output .= $this->_rows( $taxonomy, $terms, $children, $start, $per_page, $count, $term->term_id, $level + 1 );
 		}
+
+		return $output;
 	}
 
 	function single_row( $tag, $level = 0 ) {
@@ -225,7 +225,7 @@ class WP_Terms_List_Table extends WP_List_Table {
 		$this->level = $level;
 
 		echo '<tr id="tag-' . $tag->term_id . '"' . $row_class . '>';
-		$this->single_row_columns( $tag );
+		echo $this->single_row_columns( $tag );
 		echo '</tr>';
 	}
 

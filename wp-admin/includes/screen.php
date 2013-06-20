@@ -142,7 +142,6 @@ function screen_icon( $screen = '' ) {
  *
  * @since 3.2.0
  *
- * @global $post_ID
  * @param string|WP_Screen $screen Optional. Accepts a screen object (and defaults to the current screen object)
  * 	which it uses to determine an icon HTML ID. Or, if a string is provided, it is used to form the icon HTML ID.
  * @return string HTML for the screen icon.
@@ -166,15 +165,6 @@ function get_screen_icon( $screen = '' ) {
 
 		if ( $screen->post_type )
 			$class .= ' ' . sanitize_html_class( 'icon32-posts-' . $screen->post_type );
-
-		if ( 'post' == $screen->id ) {
-			$post_format = get_post_format();
-			if ( ! $post_format && ! empty( $_REQUEST['format'] ) && in_array( $_REQUEST['format'], get_post_format_slugs() ) )
-				$post_format = $_REQUEST['format'];
-
-			if ( $post_format )
-				$class .= ' wp-format-' . $post_format;
-		}
 	}
 
 	return '<div id="icon-' . esc_attr( $icon_id ) . '" class="' . $class . '"><br /></div>';
@@ -329,20 +319,20 @@ final class WP_Screen {
 
 	/**
 	 * The help tab data associated with the screen, if any.
-	 *
-	 * @since 3.3.0
-	 * @var array
-	 * @access private
-	 */
+ 	 *
+ 	 * @since 3.3.0
+ 	 * @var array
+ 	 * @access private
+ 	 */
 	private $_help_tabs = array();
 
-	/**
+ 	/**
 	 * The help sidebar data associated with screen, if any.
 	 *
 	 * @since 3.3.0
 	 * @var string
 	 * @access private
-	 */
+ 	 */
 	private $_help_sidebar = '';
 
 	/**
@@ -386,16 +376,16 @@ final class WP_Screen {
 	 */
 	private $_screen_settings;
 
-	/**
+ 	/**
 	 * Fetches a screen object.
-	 *
-	 * @since 3.3.0
+ 	 *
+ 	 * @since 3.3.0
 	 * @access public
-	 *
+ 	 *
 	 * @param string $hook_name Optional. The hook name (also known as the hook suffix) used to determine the screen.
 	 * 	Defaults to the current $hook_suffix global.
 	 * @return WP_Screen Screen object.
-	 */
+ 	 */
 	public static function get( $hook_name = '' ) {
 
 		if ( is_a( $hook_name, 'WP_Screen' ) )
@@ -437,13 +427,13 @@ final class WP_Screen {
 			if ( 'edit-comments' != $id && 'edit-tags' != $id && 'edit-' == substr( $id, 0, 5 ) ) {
 				$maybe = substr( $id, 5 );
 				if ( taxonomy_exists( $maybe ) ) {
-					$id = 'edit-tags';
+ 					$id = 'edit-tags';
 					$taxonomy = $maybe;
 				} elseif ( post_type_exists( $maybe ) ) {
 					$id = 'edit';
 					$post_type = $maybe;
 				}
-			}
+ 			}
 
 			if ( ! $in_admin )
 				$in_admin = 'site';
@@ -490,7 +480,7 @@ final class WP_Screen {
 						$post_type = 'post';
 					break;
 			}
-		}
+ 		}
 
 		switch ( $base ) {
 			case 'post' :
@@ -523,7 +513,7 @@ final class WP_Screen {
 		} elseif ( 'user' == $in_admin ) {
 			$id   .= '-user';
 			$base .= '-user';
-		}
+ 		}
 
 		if ( isset( self::$_registry[ $id ] ) ) {
 			$screen = self::$_registry[ $id ];
@@ -545,7 +535,7 @@ final class WP_Screen {
 		self::$_registry[ $id ] = $screen;
 
 		return $screen;
-	}
+ 	}
 
 	/**
 	 * Makes the screen object the current screen.
@@ -908,16 +898,13 @@ final class WP_Screen {
 
 		$show_screen = ! empty( $wp_meta_boxes[ $this->id ] ) || $columns || $this->get_option( 'per_page' );
 
+		$this->_screen_settings = apply_filters( 'screen_settings', '', $this );
+
 		switch ( $this->id ) {
 			case 'widgets':
 				$this->_screen_settings = '<p><a id="access-on" href="widgets.php?widgets-access=on">' . __('Enable accessibility mode') . '</a><a id="access-off" href="widgets.php?widgets-access=off">' . __('Disable accessibility mode') . "</a></p>\n";
 				break;
-			default:
-				$this->_screen_settings = '';
-				break;
 		}
-
-		$this->_screen_settings = apply_filters( 'screen_settings', $this->_screen_settings, $this );
 
 		if ( $this->_screen_settings || $this->_options )
 			$show_screen = true;
@@ -962,18 +949,6 @@ final class WP_Screen {
 						echo '<label for="wp_welcome_panel-hide">';
 						echo '<input type="checkbox" id="wp_welcome_panel-hide"' . checked( (bool) $welcome_checked, true, false ) . ' />';
 						echo _x( 'Welcome', 'Welcome panel' ) . "</label>\n";
-					} elseif ( 'post' == $this->base && post_type_supports( $this->post_type, 'post-formats' ) && apply_filters( 'enable_post_format_ui', true, $GLOBALS['post'] ) ) {
-						$user_wants = get_user_option( 'post_formats_' . $this->post_type );
-						if ( false !== $user_wants ) {
-							// User wants what user gets.
-							$show_post_format_ui = (bool) $user_wants;
-						} else {
-							// UI is shown when the theme supports formats, or if the site has formats assigned to posts.
-							$show_post_format_ui = current_theme_supports( 'post-formats' ) || get_terms( 'post_format', array( 'number' => 1 ) );
-						}
-						echo '<label for="show_post_format_ui">';
-						echo '<input type="checkbox" id="show_post_format_ui"' . checked( $show_post_format_ui, true, false ) . ' />';
-						echo __( 'Post Formats' ) . "</label>\n";
 					}
 				?>
 				<br class="clear" />

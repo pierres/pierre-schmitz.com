@@ -71,7 +71,8 @@ var wpLink;
 					width: 480,
 					height: 'auto',
 					modal: true,
-					dialogClass: 'wp-dialog'
+					dialogClass: 'wp-dialog',
+					zIndex: 300000
 				});
 			}
 

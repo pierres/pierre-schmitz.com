@@ -347,11 +347,11 @@ function wp_print_media_templates() {
 					data-user-setting="urlbutton"
 				<# } #>>
 
-				<option value="post" selected>
-					<?php esc_attr_e('Attachment Page'); ?>
-				</option>
-				<option value="file">
+				<option value="file" selected>
 					<?php esc_attr_e('Media File'); ?>
+				</option>
+				<option value="post">
+					<?php esc_attr_e('Attachment Page'); ?>
 				</option>
 			</select>
 		</label>

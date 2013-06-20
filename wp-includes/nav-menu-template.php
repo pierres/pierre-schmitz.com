@@ -80,21 +80,10 @@ class Walker_Nav_Menu extends Walker {
 
 		$output .= $indent . '<li' . $id . $value . $class_names .'>';
 
-		$atts = array();
-		$atts['title']  = ! empty( $item->attr_title ) ? $item->attr_title : '';
-		$atts['target'] = ! empty( $item->target )     ? $item->target     : '';
-		$atts['rel']    = ! empty( $item->xfn )        ? $item->xfn        : '';
-		$atts['href']   = ! empty( $item->url )        ? $item->url        : '';
-
-		$atts = apply_filters( 'nav_menu_link_attributes', $atts, $item, $args );
-
-		$attributes = '';
-		foreach ( $atts as $attr => $value ) {
-			if ( ! empty( $value ) ) {
-				$value = ( 'href' === $attr ) ? esc_url( $value ) : esc_attr( $value );
-				$attributes .= ' ' . $attr . '="' . $value . '"';
-			}
-		}
+		$attributes  = ! empty( $item->attr_title ) ? ' title="'  . esc_attr( $item->attr_title ) .'"' : '';
+		$attributes .= ! empty( $item->target )     ? ' target="' . esc_attr( $item->target     ) .'"' : '';
+		$attributes .= ! empty( $item->xfn )        ? ' rel="'    . esc_attr( $item->xfn        ) .'"' : '';
+		$attributes .= ! empty( $item->url )        ? ' href="'   . esc_attr( $item->url        ) .'"' : '';
 
 		$item_output = $args->before;
 		$item_output .= '<a'. $attributes .'>';
@@ -262,7 +251,7 @@ function wp_nav_menu( $args = array() ) {
  * @param array $menu_items The current menu item objects to which to add the class property information.
  */
 function _wp_menu_item_classes_by_context( &$menu_items ) {
-	global $wp_query, $wp_rewrite;
+	global $wp_query;
 
 	$queried_object = $wp_query->get_queried_object();
 	$queried_object_id = (int) $wp_query->queried_object_id;
@@ -378,7 +367,7 @@ function _wp_menu_item_classes_by_context( &$menu_items ) {
 			$current_url = set_url_scheme( 'http://' . $_SERVER['HTTP_HOST'] . $_root_relative_current );
 			$raw_item_url = strpos( $menu_item->url, '#' ) ? substr( $menu_item->url, 0, strpos( $menu_item->url, '#' ) ) : $menu_item->url;
 			$item_url = untrailingslashit( $raw_item_url );
-			$_indexless_current = untrailingslashit( preg_replace( '/' . preg_quote( $wp_rewrite->index, '/' ) . '$/', '', $current_url ) );
+			$_indexless_current = untrailingslashit( preg_replace( '/index.php$/', '', $current_url ) );
 
 			if ( $raw_item_url && in_array( $item_url, array( $current_url, $_indexless_current, $_root_relative_current ) ) ) {
 				$classes[] = 'current-menu-item';

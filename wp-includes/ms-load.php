@@ -69,7 +69,7 @@ function wp_get_active_network_plugins() {
  * @return bool|string Returns true on success, or drop-in file to include.
  */
 function ms_site_check() {
-	global $wpdb, $current_site;
+	global $wpdb;
 
 	$blog = get_blog_details();
 
