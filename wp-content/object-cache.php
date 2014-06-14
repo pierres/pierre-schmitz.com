@@ -1,12 +1,12 @@
 <?php
 
 /**
- * Plugin Name: XCache Object Cache Backend
- * Description: XCache backend for the WordPress Object Cache.
- * Version: 1.2.0
+ * Plugin Name: APCu Object Cache Backend
+ * Description: APCu backend for the WordPress Object Cache.
+ * Version: 1.0.0
  * Author: Pierre Schmitz
  * Author URI: https://pierre-schmitz.com/
- * Plugin URI: https://wordpress.org/extend/plugins/xcache/
+ * Plugin URI: https://wordpress.org/extend/plugins/apcu/
  */
 
 if (function_exists( 'wp_cache_add')) {
@@ -55,17 +55,17 @@ function wp_cache_incr($key, $offset = 1, $group = '') {
 }
 
 function wp_cache_init() {
-	if (!function_exists('xcache_get') || intval(ini_get('xcache.var_size')) == 0) {
-		$error = 'XCache is not configured correctly. Please refer to https://wordpress.org/extend/plugins/xcache/installation/ for instructions.';
+	if (!function_exists('apcu_fetch')) {
+		$error = 'APCu is not configured correctly. Please refer to https://wordpress.org/extend/plugins/apcu/installation/ for instructions.';
 		if (function_exists('wp_die')) {
-			wp_die($error, 'XCache Object Cache', array('response' => 503));
+			wp_die($error, 'APCu Object Cache', array('response' => 503));
 		} else {
 			header('HTTP/1.0 503 Service Unavailable');
 			header('Content-Type: text/plain; charset=UTF-8');
 			die($error);
 		}
 	} else {
-		$GLOBALS['wp_object_cache'] = new XCache_Object_Cache();
+		$GLOBALS['wp_object_cache'] = new APCu_Object_Cache();
 	}
 }
 
@@ -105,7 +105,7 @@ function wp_cache_reset() {
 	return $wp_object_cache->reset();
 }
 
-class XCache_Object_Cache {
+class APCu_Object_Cache {
 
 	private $prefix = '';
 	private $local_cache = array();
@@ -134,28 +134,6 @@ class XCache_Object_Cache {
 		}
 	}
 
-	private function xcache_set($key, $data, $expire = 0) {
-		if (is_null($data) || !is_scalar($data)) {
-			return xcache_set($key, serialize($data), $expire);
-		} else {
-			return xcache_set($key, $data, $expire);
-		}
-	}
-
-	private function xcache_get($key, &$found = null) {
-		$value = xcache_get($key);
-		if (!is_null($value)) {
-			$found = true;
-			$unserializedValue = @unserialize($value);
-			if ($unserializedValue !== false) {
-				$value = $unserializedValue;
-			}
-		} else {
-			$found = false;
-		}
-		return $value;
-	}
-
 	public function add($key, $data, $group = 'default', $expire = 0) {
 		$group = $this->get_group($group);
 		$key = $this->get_key($group, $key);
@@ -166,7 +144,8 @@ class XCache_Object_Cache {
 		if (isset($this->local_cache[$group][$key])) {
 			return false;
 		}
-		if (!isset($this->non_persistent_groups[$group]) && xcache_isset($key)) {
+		// FIXME: Somehow apcu_add does not return false if key already exists
+		if (!isset($this->non_persistent_groups[$group]) && apcu_exists($key)) {
 			return false;
 		}
 
@@ -177,7 +156,7 @@ class XCache_Object_Cache {
 		}
 
 		if (!isset($this->non_persistent_groups[$group])) {
-			return $this->xcache_set($key, $data, (int) $expire);
+			return apcu_add($key, $data, (int) $expire);
 		}
 
 		return true;
@@ -216,9 +195,9 @@ class XCache_Object_Cache {
 		if (isset($this->non_persistent_groups[$group])) {
 			return $this->local_cache[$group][$key];
 		} else {
-			$value = xcache_dec($key, $offset);
+			$value = apcu_dec($key, $offset);
 			if ($value < 0) {
-				$this->xcache_set($key, 0);
+				apcu_store($key, 0);
 				return 0;
 			}
 			return $value;
@@ -231,19 +210,15 @@ class XCache_Object_Cache {
 
 		unset($this->local_cache[$group][$key]);
 		if (!isset($this->non_persistent_groups[$group])) {
-			return xcache_unset($key);
+			return apcu_delete($key);
 		}
 		return true;
 	}
 
 	public function flush() {
 		$this->local_cache = array ();
-		// xcache_unset_by_prefix is only available since XCache 1.3
-		if (function_exists('xcache_unset_by_prefix')) {
-			xcache_unset_by_prefix($this->prefix);
-		} else {
-			xcache_clear_cache(XC_TYPE_VAR, 0);
-		}
+		// TODO: only clear our own entries
+		apcu_clear_cache();
 		return true;
 	}
 
@@ -262,7 +237,7 @@ class XCache_Object_Cache {
 			$found = false;
 			return false;
 		} else {
-			$value = $this->xcache_get($key, $found);
+			$value = apcu_fetch($key, $found);
 			if ($found) {
 				if ($force) {
 					$this->local_cache[$group][$key] = $value;
@@ -287,9 +262,9 @@ class XCache_Object_Cache {
 		if (isset($this->non_persistent_groups[$group])) {
 			return $this->local_cache[$group][$key];
 		} else {
-			$value = xcache_inc($key, $offset);
+			$value = apcu_inc($key, $offset);
 			if ($value < 0) {
-				$this->xcache_set($key, 0);
+				apcu_store($key, 0);
 				return 0;
 			}
 			return $value;
@@ -305,10 +280,10 @@ class XCache_Object_Cache {
 				return false;
 			}
 		} else {
-			if (!isset($this->local_cache[$group][$key]) && !xcache_isset($key)) {
+			if (!isset($this->local_cache[$group][$key]) && !apcu_exists($key)) {
 				return false;
 			}
-			$this->xcache_set($key, $data, (int) $expire);
+			apcu_store($key, $data, (int) $expire);
 		}
 
 		if (is_object($data)) {
@@ -337,7 +312,7 @@ class XCache_Object_Cache {
 		}
 
 		if (!isset($this->non_persistent_groups[$group])) {
-			return $this->xcache_set($key, $data, (int) $expire);
+			return apcu_store($key, $data, (int) $expire);
 		}
 
 		return true;
