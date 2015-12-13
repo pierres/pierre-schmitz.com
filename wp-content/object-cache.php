@@ -3,7 +3,7 @@
 /**
  * Plugin Name: APCu Object Cache Backend
  * Description: APCu backend for the WordPress Object Cache.
- * Version: 1.0.1
+ * Version: 1.0.2
  * Author: Pierre Schmitz
  * Author URI: https://pierre-schmitz.com/
  * Plugin URI: https://wordpress.org/extend/plugins/apcu/
@@ -183,6 +183,10 @@ class APCu_Object_Cache {
 	}
 
 	public function decr($key, $offset = 1, $group = 'default') {
+		if ($offset < 0) {
+			return $this->incr($key, abs($offset), $group);
+		}
+
 		$group = $this->get_group($group);
 		$key = $this->get_key($group, $key);
 
@@ -250,6 +254,10 @@ class APCu_Object_Cache {
 	}
 
 	public function incr($key, $offset = 1, $group = 'default') {
+		if ($offset < 0) {
+			return $this->decr($key, abs($offset), $group);
+		}
+
 		$group = $this->get_group($group);
 		$key = $this->get_key($group, $key);
 
