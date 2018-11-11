@@ -1,8 +1,2 @@
 User-agent: *
-Disallow: /wp-content/
-Allow: /wp-content/uploads/
 Disallow: /wp-admin/
-Disallow: /wp-includes/
-Disallow: /feed/
-Disallow: /author/
-Disallow: /category/
