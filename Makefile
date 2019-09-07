@@ -5,7 +5,7 @@ ci-update-commit:
 	git config --local user.name "$${GH_NAME}"
 	git config --local user.email "$${GH_EMAIL}"
 	git add -A
-	git commit -m"Update to WordPress $$(php -r 'require "wp-includes/version.php";echo $$wp_version;') and WP-CLI $$(./wp-cli cli version)"
+	git commit -m"Update to WordPress $$(php -r 'require "wp-includes/version.php";echo $$wp_version;') and $$(./wp-cli cli version)"
 	git remote add origin-push https://$${GH_USER}:$${GH_TOKEN}@github.com/$${GITHUB_REPOSITORY}.git
 	git push --set-upstream origin-push master
 
