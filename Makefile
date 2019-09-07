@@ -12,7 +12,7 @@ ci-update-commit:
 	git push --set-upstream origin-push master
 
 ci-update:
-	git ls-files | grep -Ev 'wp-content/object-cache\.php|Makefile|robots\.txt|favicon\.ico|\.git.*|wp-cli' | xargs rm -f
+	git ls-files | grep -Ev 'Makefile|robots\.txt|favicon\.ico|\.git.*|wp-cli' | xargs rm -f
 	find . -type d -empty -delete
 	curl -s https://wordpress.org/latest.tar.gz | tar -xz --strip-components=1
 	git checkout master
