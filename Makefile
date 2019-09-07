@@ -1,5 +1,5 @@
 .EXPORT_ALL_VARIABLES:
-.PHONY: ci-update ci-update-commit
+.PHONY: ci-update ci-update-commit deploy
 
 ci-update-commit:
 	git config --local user.name "$${GH_NAME}"
@@ -13,5 +13,10 @@ ci-update:
 	git ls-files | grep -Ev 'wp-content/object-cache\.php|Makefile|robots\.txt|favicon\.ico|\.git.*' | xargs rm -f
 	find . -type d -empty -delete
 	curl -s https://wordpress.org/latest.tar.gz | tar -xz --strip-components=1
+	curl -so wp-cli https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+	chmod +x wp-cli
 	git checkout master
 	if ! git diff-index --quiet HEAD; then ${MAKE} ci-update-commit; fi
+
+deploy:
+	./wp-cli core update-db
