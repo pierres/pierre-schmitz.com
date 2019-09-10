@@ -1,16 +1,15 @@
-name: Update
+name: update
 
 on:
   schedule:
-    - cron: '0 */2 * * *'
+    - cron: '0 1 * * *'
 
 jobs:
   update:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
-      - name: Run update
-        env:
+      - env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
           GH_USER: ${{ secrets.GH_USER }}
           GH_NAME: ${{ secrets.GH_NAME }}
