@@ -2,16 +2,19 @@ name: update
 
 on:
   schedule:
-    - cron: '0 1 * * *'
+    - cron: '0 */2 * * *'
 
 jobs:
   update:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
-      - env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
-          GH_USER: ${{ secrets.GH_USER }}
-          GH_NAME: ${{ secrets.GH_NAME }}
-          GH_EMAIL: ${{ secrets.GH_EMAIL }}
-        run: make ci-update
+      - uses: actions/checkout@master
+      - run: make update
+      - name: auto commit
+        uses: stefanzweifel/git-auto-commit-action@v2.0.0
+        with:
+          commit_author_email: bob@archlinux.de
+          commit_author_name: Maintenance Bob
+          commit_message: Update WordPress
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
