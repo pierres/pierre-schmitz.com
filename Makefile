@@ -8,4 +8,4 @@ update:
 	chmod +x wp-cli
 
 deploy:
-	./wp-cli core update-db
+	sudo -u php-pierre ./wp-cli core update-db
