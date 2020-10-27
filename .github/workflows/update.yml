@@ -8,9 +8,11 @@ jobs:
   update:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@master
+      - name: Install Just
+        run: curl -sSf https://just.systems/install.sh | sudo bash -s -- --to /usr/local/bin
+      - uses: actions/checkout@v2
       - name: Update WordPress and dependencies
-        run: make update
+        run: just update
       - name: Commit updates
         uses: stefanzweifel/git-auto-commit-action@v4
         with:
