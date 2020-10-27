@@ -7,3 +7,5 @@ update:
 
 deploy:
 	./wp-cli core update-db
+
+# vim: set ft=make :
