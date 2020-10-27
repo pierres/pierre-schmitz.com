@@ -9,12 +9,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@master
-      - run: make update
-      - name: Run auto commit
-        uses: stefanzweifel/git-auto-commit-action@v2.0.0
+      - name: Update WordPress and dependencies
+        run: make update
+      - name: Commit updates
+        uses: stefanzweifel/git-auto-commit-action@v4
         with:
-          commit_author_email: bob@archlinux.de
-          commit_author_name: Maintenance Bob
           commit_message: Update WordPress
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          commit_user_name: Maintenance Bob
+          commit_user_email: bob@archlinux.de
+          commit_author: Maintenance Bob <bob@archlinux.de>
