@@ -1,4 +1,5 @@
 update:
+	#!/usr/bin/env bash
 	git ls-files | grep -Ev 'justfile|robots\.txt|favicon\.ico|\.git.*' | xargs rm -f
 	find . -type d -empty -delete
 	curl -s https://wordpress.org/latest.tar.gz | tar -xz --strip-components=1
