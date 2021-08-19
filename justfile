@@ -17,5 +17,6 @@ update:
 
 deploy:
 	./wp-cli core update-db
+	systemctl restart php-fpm@pierre.service
 
 # vim: set ft=make :
