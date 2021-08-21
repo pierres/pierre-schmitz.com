@@ -1,2 +1,10 @@
 User-agent: *
+Allow: /
 Disallow: /wp-admin/
+Sitemap: https://pierre-schmitz.com/wp-sitemap.xml
+
+User-agent: SemrushBot
+User-agent: AhrefsBot
+User-agent: dotbot
+User-agent: MJ12bot
+Disallow: /
