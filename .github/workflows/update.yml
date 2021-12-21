@@ -9,8 +9,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install Just
-        run: curl -sSf https://just.systems/install.sh | sudo bash -s -- --to /usr/local/bin
-      - uses: actions/checkout@v2
+        uses: extractions/setup-just@v1
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          token: ${{ secrets.MAINTENANCE_TOKEN }}
       - name: Update WordPress and dependencies
         run: just update
       - name: Commit updates
