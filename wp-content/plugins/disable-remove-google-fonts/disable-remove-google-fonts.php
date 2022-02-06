@@ -2,10 +2,10 @@
 /**
  * Plugin Name: Disable/Remove Google Fonts
  * Plugin URI: https://wordpress.org/plugins/disable-remove-google-fonts/
- * Description: Optimize frontend performance by disabling Google Fonts.
+ * Description: Optimize frontend performance by disabling Google Fonts. GDPR-friendly.
  * Author: Fonts Plugin
  * Author URI: https://fontsplugin.com
- * Version: 1.3.2
+ * Version: 1.3.4
  * License: GPLv2 or later
  * License URI: https://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
  *
@@ -35,11 +35,24 @@ function drgf_dequeueu_fonts() {
 	foreach ( $wp_styles->registered as $style ) {
 		$handle = $style->handle;
 		$src    = $style->src;
-		$gfonts = strpos( $src, 'fonts.googleapis' );
 
-		if ( false !== $gfonts ) {
+		if ( strpos( $src, 'fonts.googleapis' ) !== false ) {
 			if ( ! array_key_exists( $handle, array_flip( $allowed ) ) ) {
 				wp_dequeue_style( $handle );
+			}
+		}
+	}
+
+	/**
+	 * Some themes set the Google Fonts URL as a dependency, so we need to replace
+	 * it with a blank value rather than removing it entirely. As that would
+	 * remove the stylesheet too.
+	 */
+	foreach ( $wp_styles->registered as $style ) {
+		foreach( $style->deps as $dep ) {
+			if ( ( strpos( $dep, 'google-fonts' ) !== false ) || ( strpos( $dep, 'google_fonts' ) !== false ) || ( strpos( $dep, 'googlefonts' ) !== false ) ) {
+				$wp_styles->remove( $dep );
+				$wp_styles->add( $dep, '' );
 			}
 		}
 	}
