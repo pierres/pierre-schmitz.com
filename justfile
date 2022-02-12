@@ -25,6 +25,6 @@ update:
 deploy:
 	./wp-cli core update-db
 	./wp-cli plugin activate disable-remove-google-fonts
-	systemctl restart php-fpm@pierre.service
+	sudo systemctl restart php-fpm@pierre.service
 
 # vim: set ft=make :
