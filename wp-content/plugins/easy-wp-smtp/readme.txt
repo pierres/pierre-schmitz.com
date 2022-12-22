@@ -1,15 +1,14 @@
-=== Easy WP SMTP ===
-Contributors: wpecommerce, wp.insider, alexanderfoxc
-Donate link: https://wp-ecommerce.net/easy-wordpress-smtp-send-emails-from-your-wordpress-site-using-a-smtp-server-2197
+=== Easy WP SMTP - WordPress Email SMTP Plugin ===
+Contributors: easywpsmtp, jaredatch, smub, capuderg
 Tags: mail, wordpress smtp, phpmailer, smtp, wp_mail, email, gmail, outgoing mail, privacy, security, sendmail, ssl, tls, wp-phpmailer, mail smtp, wp smtp
 Requires at least: 5.0
 Tested up to: 6.1
 Requires PHP: 5.6
-Stable tag: 1.5.2
+Stable tag: 1.5.3
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
-Easily send emails from your WordPress blog using your preferred SMTP server
+Easily send emails from your WordPress site using your preferred SMTP server
 
 == Description ==
 
@@ -41,7 +40,7 @@ The general settings section consists of the following options
 * Username: The username that you use to login to your mail server
 * Password: The password that you use to login to your mail server
 
-For detailed documentation on how you can configure these options please visit the [Easy WordPress SMTP](https://wp-ecommerce.net/easy-wordpress-smtp-send-emails-from-your-wordpress-site-using-a-smtp-server-2197) plugin page
+For detailed documentation on how you can configure these options please visit the [Easy WordPress SMTP](https://easywpsmtp.com/easy-wp-smtp-plugin-quick-setup-guide/) plugin page
 
 **b)** Easy WP SMTP Testing & Debugging Settings
 
@@ -69,7 +68,7 @@ Yes.
 
 == Screenshots ==
 
-For screenshots please visit the [Easy WordPress SMTP](https://wp-ecommerce.net/easy-wordpress-smtp-send-emails-from-your-wordpress-site-using-a-smtp-server-2197) plugin page
+For screenshots please visit the [Easy WordPress SMTP](https://easywpsmtp.com/easy-wp-smtp-plugin-quick-setup-guide/) plugin page
 
 == Other Notes ==
 
@@ -77,6 +76,10 @@ Inspired by [WP Mail SMTP](http://wordpress.org/plugins/wp-mail-smtp/) plugin
 
 
 == Changelog ==
+
+= 1.5.3 =
+* Added logs file path location filter.
+* Updated plugin documentation links.
 
 = 1.5.2 =
 * Removed the export/import settings option. There will be a separate free addon to offer the export/import settings option.

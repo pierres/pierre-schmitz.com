@@ -3,10 +3,10 @@ use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 /*
 Plugin Name: Easy WP SMTP
-Version: 1.5.2
-Plugin URI: https://wp-ecommerce.net/easy-wordpress-smtp-send-emails-from-your-wordpress-site-using-a-smtp-server-2197
-Author: wpecommerce, alexanderfoxc
-Author URI: https://wp-ecommerce.net/
+Version: 1.5.3
+Plugin URI: https://easywpsmtp.com/
+Author: Easy WP SMTP team
+Author URI: https://easywpsmtp.com/
 Description: Send email via SMTP from your WordPress Blog
 Text Domain: easy-wp-smtp
 Domain Path: /languages
@@ -14,7 +14,7 @@ Domain Path: /languages
 
 //Prefix/Slug - swpsmtp
 
-define( 'EasyWPSMTP_PLUGIN_VERSION', '1.5.2' );
+define( 'EasyWPSMTP_PLUGIN_VERSION', '1.5.3' );
 define( 'EasyWPSMTP_PLUGIN_FILE', __FILE__ );
 
 class EasyWPSMTP {
@@ -47,6 +47,11 @@ class EasyWPSMTP {
 			add_filter( 'plugin_action_links', array( $this, 'plugin_action_links' ), 10, 2 );
 			add_filter( 'plugin_row_meta', array( $this, 'register_plugin_links' ), 10, 2 );
 			add_action( 'admin_notices', array( $this, 'admin_notices' ) );
+
+			// Set plugin activation time for all installs.
+			if ( empty( get_option( 'easy_wp_smtp_activated_time' ) ) ) {
+				add_option( 'easy_wp_smtp_activated_time', time() );
+			}
 		}
 	}
 
@@ -324,6 +329,12 @@ $this->log( $line . "\r\n" );
 	}
 
 	public function admin_init() {
+
+		// Require and initialize the User Feedback functionality.
+		require_once 'inc/UserFeedback.php';
+
+		( new UserFeedback() )->init();
+
 		if ( current_user_can( 'manage_options' ) ) {
 			if ( defined( 'DOING_AJAX' ) && DOING_AJAX ) {
 				add_action( 'wp_ajax_swpsmtp_clear_log', array( $this, 'clear_log' ) );
@@ -332,6 +343,7 @@ $this->log( $line . "\r\n" );
 			//view log file
 			if ( isset( $_GET['swpsmtp_action'] ) ) {
 				if ( 'view_log' === $_GET['swpsmtp_action'] ) {
+					$log_file_root_path = $this->get_log_file_root_path();
 					$log_file_name = isset( $this->opts['smtp_settings']['log_file_name'] ) ? $this->opts['smtp_settings']['log_file_name'] : '';
 
 					if ( empty( $log_file_name ) ) {
@@ -339,12 +351,12 @@ $this->log( $line . "\r\n" );
 						wp_die( 'Nothing in the log file yet.' );
 					}
 
-					if ( ! file_exists( plugin_dir_path( __FILE__ ) . $log_file_name ) ) {
+					if ( ! file_exists( $log_file_root_path . $log_file_name ) ) {
 						if ( $this->log( self::$reset_log_str ) === false ) {
-							wp_die( esc_html( sprintf( 'Can\'t write to log file. Check if plugin directory (%s) is writeable.', plugin_dir_path( __FILE__ ) ) ) );
+							wp_die( esc_html( sprintf( 'Can\'t write to log file. Check if plugin directory (%s) is writeable.', $log_file_root_path ) ) );
 						};
 					}
-					$logfile = fopen( plugin_dir_path( __FILE__ ) . $log_file_name, 'rb' ); //phpcs:ignore
+					$logfile = fopen( $log_file_root_path . $log_file_name, 'rb' ); //phpcs:ignore
 					if ( ! $logfile ) {
 						wp_die( 'Can\'t open log file.' );
 					}
@@ -353,8 +365,6 @@ $this->log( $line . "\r\n" );
 					die;
 				}
 			}
-
-			
 		}
 	}
 
@@ -364,19 +374,23 @@ $this->log( $line . "\r\n" );
 			?>
 		<div class="error">
 			<p>
-							<?php
+							<?php // translators: %s URL to the plugin's settings page.
 							printf( __( 'Please configure your SMTP credentials in the <a href="%s">settings menu</a> in order to send email using Easy WP SMTP plugin.', 'easy-wp-smtp' ), esc_url( $settings_url ) );
 							?>
 			</p>
 		</div>
 			<?php
-		}	
+		}
 	}
 
 	public function get_log_file_path() {
 		$log_file_name = 'logs' . DIRECTORY_SEPARATOR . '.' . uniqid( '', true ) . '.txt';
 		$log_file_name = apply_filters( 'swpsmtp_log_file_path_override', $log_file_name );
 		return $log_file_name;
+	}
+
+	private function get_log_file_root_path() {
+		return apply_filters( 'easy_wp_mail_get_log_file_root_path', plugin_dir_path( __FILE__ ) );
 	}
 
 	public function clear_log() {
@@ -394,24 +408,25 @@ $this->log( $line . "\r\n" );
 
 	public function log( $str, $overwrite = false ) {
 		try {
+			$log_file_root_path = $this->get_log_file_root_path();
 			$log_file_name = '';
 			if ( isset( $this->opts['smtp_settings']['log_file_name'] ) ) {
 				$log_file_name = $this->opts['smtp_settings']['log_file_name'];
 			}
 			if ( empty( $log_file_name ) || $overwrite ) {
-				if ( ! empty( $log_file_name ) && file_exists( plugin_dir_path( __FILE__ ) . $log_file_name ) ) {
-					unlink( plugin_dir_path( __FILE__ ) . $log_file_name );
+				if ( ! empty( $log_file_name ) && file_exists( $log_file_root_path . $log_file_name ) ) {
+					unlink( $log_file_root_path . $log_file_name );
 				}
 				$log_file_name = $this->get_log_file_path();
 
 				$this->opts['smtp_settings']['log_file_name'] = $log_file_name;
 				update_option( 'swpsmtp_options', $this->opts );
-				file_put_contents( plugin_dir_path( __FILE__ ) . $log_file_name, self::$reset_log_str ); //phpcs:ignore
+				file_put_contents( $log_file_root_path . $log_file_name, self::$reset_log_str ); //phpcs:ignore
 			}
                         //Timestamp the log output
                         $str = '[' . date( 'm/d/Y g:i:s A' ) . '] - ' . $str;
                         //Write to the log file
-                        return ( file_put_contents( plugin_dir_path( __FILE__ ) . $log_file_name, $str, ( ! $overwrite ? FILE_APPEND : 0 ) ) ); //phpcs:ignore
+                        return ( file_put_contents( $log_file_root_path . $log_file_name, $str, ( ! $overwrite ? FILE_APPEND : 0 ) ) ); //phpcs:ignore
 		} catch ( \Exception $e ) {
 			return false;
 		}

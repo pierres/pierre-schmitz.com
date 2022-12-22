@@ -4,7 +4,7 @@ class EasyWPSMTP_Admin {
 
 	public function __construct() {
 		add_action( 'admin_enqueue_scripts', array( $this, 'admin_enqueue_scripts' ) );
-		add_action( 'admin_menu', array( $this, 'admin_menu' ) );		
+		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
 	}
 
 	public function admin_enqueue_scripts( $hook ) {
@@ -411,7 +411,7 @@ function swpsmtp_settings() {
 						<div class="inside">
 							<p><?php esc_html_e( 'Actions in this section can (and some of them will) erase or mess up your settings. Use it with caution.', 'easy-wp-smtp' ); ?></p>
 							<table class="form-table">
-								
+
 								<!-- Requires plugin: easy-wp-smtp-export-import-settings -->
 								<?php do_action("easy_wp_smtp_export_import_settings"); ?>
 
@@ -535,9 +535,9 @@ function swpsmtp_settings() {
 						printf(
 							esc_html(
 								// translators: %s is replaced by documentation page URL
-								_x( "Please visit the %s plugin's documentation page to learn how to use this plugin.", '%s is replaced by <a target="_blank" href="https://wp-ecommerce.net/easy-wordpress-smtp-send-emails-from-your-wordpress-site-using-a-smtp-server-2197">Easy WP SMTP</a>', 'easy-wp-smtp' )
+								_x( "Please visit the %s plugin's documentation page to learn how to use this plugin.", '%s is replaced by <a target="_blank" href="https://easywpsmtp.com/easy-wp-smtp-plugin-quick-setup-guide/">Easy WP SMTP</a>', 'easy-wp-smtp' )
 							),
-							'<a target="_blank" href="https://wp-ecommerce.net/easy-wordpress-smtp-send-emails-from-your-wordpress-site-using-a-smtp-server-2197">Easy WP SMTP</a>'
+							'<a target="_blank" href="https://easywpsmtp.com/easy-wp-smtp-plugin-quick-setup-guide/">Easy WP SMTP</a>'
 						);
 					?>
 				</div>
