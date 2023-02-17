@@ -104,6 +104,37 @@ class Area {
 		}
 
 		( new UserFeedback() )->init();
+
+		// Enable "Compact Mode" menu view.
+		if ( $this->is_top_level_menu_hidden() ) {
+			if ( $this->is_admin_page() ) {
+				global $pagenow;
+
+				// Redirect from `options-general.php`.
+				if ( WP::in_wp_admin() && $pagenow === 'options-general.php' ) {
+					wp_safe_redirect( $this->get_admin_page_url() );
+					exit();
+				}
+
+				// Highlight "Settings -> Easy WP SMTP" menu item on any plugin admin page.
+				add_filter( 'submenu_file', function () {
+					return self::SLUG;
+				} );
+			}
+
+			// Hide all top level pages from "Settings" submenu.
+			add_action( 'admin_head', function () {
+				global $submenu;
+
+				if ( isset( $submenu['options-general.php'] ) && is_array( $submenu['options-general.php'] ) ) {
+					foreach ( $submenu['options-general.php'] as $key => $menu_item ) {
+						if ( isset( $menu_item[2] ) && strpos( $menu_item[2], self::SLUG . '-' ) !== false ) {
+							unset( $submenu['options-general.php'][ $key ] );
+						}
+					}
+				}
+			} );
+		}
 	}
 
 	/**
@@ -173,37 +204,47 @@ class Area {
 		// Options pages access capability.
 		$access_capability = 'manage_options';
 
-		$this->hook = add_menu_page(
-			esc_html__( 'Easy WP SMTP', 'easy-wp-smtp' ),
-			esc_html__( 'Easy WP SMTP', 'easy-wp-smtp' ),
-			$access_capability,
-			self::SLUG,
-			[ $this, 'display' ],
-			'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMTMiIHZpZXdCb3g9IjAgMCAyMCAxMyIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTUuODgyMTEgMTEuMzI4NkM2LjAxMzM2IDExLjI1ODggNi4xNjAxMiAxMS4yMjIyIDYuMzA5MjIgMTEuMjIyMkwxMy42OTA4IDExLjIyMjJDMTMuODM5OSAxMS4yMjIyIDEzLjk4NjYgMTEuMjU4OCAxNC4xMTc5IDExLjMyODZDMTQuOTQxMiAxMS43NjY2IDE0LjYyNiAxMyAxMy42OTA4IDEzTDYuMzA5MjEgMTNDNS4zNzQwMSAxMyA1LjA1ODgzIDExLjc2NjYgNS44ODIxMSAxMS4zMjg2WiIgZmlsbD0id2hpdGUiLz4KPHBhdGggZD0iTTMuMTMzNTQgOC4yMTc0OUMzLjI2MjYzIDguMTQ3NjcgMy40MDY5OCA4LjExMTExIDMuNTUzNjIgOC4xMTExMUwxNi40NDY0IDguMTExMTFDMTYuNTkzIDguMTExMTEgMTYuNzM3NCA4LjE0NzY3IDE2Ljg2NjUgOC4yMTc0OUMxNy42NzYyIDguNjU1NSAxNy4zNjYyIDkuODg4ODkgMTYuNDQ2NCA5Ljg4ODg5TDMuNTUzNjIgOS44ODg4OUMyLjYzMzc5IDkuODg4ODkgMi4zMjM4IDguNjU1NSAzLjEzMzU0IDguMjE3NDlaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNMi4yNjMzNCAwLjUzNjY5M0MyLjEyMTQyIDAuNjY4NzY5IDEuOTk5MDIgMC44MjQwMzMgMS45MDIzNSAwLjk5ODgyM0wwLjIzNTM4MiA0LjAxMjg3Qy0wLjQ1MTQ3OCA1LjI1NDc4IDAuNDQ3MTA2IDYuNzc3NzggMS44NjY3MSA2Ljc3Nzc4TDE4LjEzMzMgNi43Nzc3OEMxOS41NTI5IDYuNzc3NzggMjAuNDUxNSA1LjI1NDc4IDE5Ljc2NDYgNC4wMTI4N0wxOC4wOTc2IDAuOTk4ODIyQzE3Ljk5MjMgMC44MDgzNTQgMTcuODU2NCAwLjY0MTA3MiAxNy42OTggMC41MDE3MTRDMTYuMDk1OSAxLjUwNTg5IDEyLjA5MTQgMy44NzM3NyA5Ljk1MjcyIDMuODczNzdDNy44Mzg0OSAzLjg3Mzc3IDMuOTAwODcgMS41NTk3MyAyLjI2MzM0IDAuNTM2NjkzWiIgZmlsbD0id2hpdGUiLz4KPHBhdGggZD0iTTIuOTYwNjMgMC4xMjcyMzNDNC43MjU2NiAxLjE5ODU5IDguMDk5MzEgMy4wODY3NyA5Ljk1MjcyIDMuMDg2NzdDMTEuODE3MiAzLjA4Njc3IDE1LjIyMDIgMS4xNzU5MiAxNi45NzYzIDAuMTA4MDlDMTYuODEyNyAwLjA2MTU0MjMgMTYuNjQxMyAwLjAzNzAzOSAxNi40NjYzIDAuMDM3MDM5TDMuNTMzNjggMC4wMzcwMzc4QzMuMzM2MTIgMC4wMzcwMzc5IDMuMTQzMSAwLjA2ODI4MjcgMi45NjA2MyAwLjEyNzIzM1oiIGZpbGw9IndoaXRlIi8+Cjwvc3ZnPgo=',
-			$this->get_menu_item_position()
-		);
+		if ( $this->is_top_level_menu_hidden() ) {
+			$this->hook = add_options_page(
+				esc_html__( 'Easy WP SMTP', 'easy-wp-smtp' ),
+				esc_html__( 'Easy WP SMTP', 'easy-wp-smtp' ),
+				$access_capability,
+				self::SLUG,
+				[ $this, 'display' ]
+			);
+		} else {
+			$this->hook = add_menu_page(
+				esc_html__( 'Easy WP SMTP', 'easy-wp-smtp' ),
+				esc_html__( 'Easy WP SMTP', 'easy-wp-smtp' ),
+				$access_capability,
+				self::SLUG,
+				[ $this, 'display' ],
+				'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMTMiIHZpZXdCb3g9IjAgMCAyMCAxMyIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTUuODgyMTEgMTEuMzI4NkM2LjAxMzM2IDExLjI1ODggNi4xNjAxMiAxMS4yMjIyIDYuMzA5MjIgMTEuMjIyMkwxMy42OTA4IDExLjIyMjJDMTMuODM5OSAxMS4yMjIyIDEzLjk4NjYgMTEuMjU4OCAxNC4xMTc5IDExLjMyODZDMTQuOTQxMiAxMS43NjY2IDE0LjYyNiAxMyAxMy42OTA4IDEzTDYuMzA5MjEgMTNDNS4zNzQwMSAxMyA1LjA1ODgzIDExLjc2NjYgNS44ODIxMSAxMS4zMjg2WiIgZmlsbD0id2hpdGUiLz4KPHBhdGggZD0iTTMuMTMzNTQgOC4yMTc0OUMzLjI2MjYzIDguMTQ3NjcgMy40MDY5OCA4LjExMTExIDMuNTUzNjIgOC4xMTExMUwxNi40NDY0IDguMTExMTFDMTYuNTkzIDguMTExMTEgMTYuNzM3NCA4LjE0NzY3IDE2Ljg2NjUgOC4yMTc0OUMxNy42NzYyIDguNjU1NSAxNy4zNjYyIDkuODg4ODkgMTYuNDQ2NCA5Ljg4ODg5TDMuNTUzNjIgOS44ODg4OUMyLjYzMzc5IDkuODg4ODkgMi4zMjM4IDguNjU1NSAzLjEzMzU0IDguMjE3NDlaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNMi4yNjMzNCAwLjUzNjY5M0MyLjEyMTQyIDAuNjY4NzY5IDEuOTk5MDIgMC44MjQwMzMgMS45MDIzNSAwLjk5ODgyM0wwLjIzNTM4MiA0LjAxMjg3Qy0wLjQ1MTQ3OCA1LjI1NDc4IDAuNDQ3MTA2IDYuNzc3NzggMS44NjY3MSA2Ljc3Nzc4TDE4LjEzMzMgNi43Nzc3OEMxOS41NTI5IDYuNzc3NzggMjAuNDUxNSA1LjI1NDc4IDE5Ljc2NDYgNC4wMTI4N0wxOC4wOTc2IDAuOTk4ODIyQzE3Ljk5MjMgMC44MDgzNTQgMTcuODU2NCAwLjY0MTA3MiAxNy42OTggMC41MDE3MTRDMTYuMDk1OSAxLjUwNTg5IDEyLjA5MTQgMy44NzM3NyA5Ljk1MjcyIDMuODczNzdDNy44Mzg0OSAzLjg3Mzc3IDMuOTAwODcgMS41NTk3MyAyLjI2MzM0IDAuNTM2NjkzWiIgZmlsbD0id2hpdGUiLz4KPHBhdGggZD0iTTIuOTYwNjMgMC4xMjcyMzNDNC43MjU2NiAxLjE5ODU5IDguMDk5MzEgMy4wODY3NyA5Ljk1MjcyIDMuMDg2NzdDMTEuODE3MiAzLjA4Njc3IDE1LjIyMDIgMS4xNzU5MiAxNi45NzYzIDAuMTA4MDlDMTYuODEyNyAwLjA2MTU0MjMgMTYuNjQxMyAwLjAzNzAzOSAxNi40NjYzIDAuMDM3MDM5TDMuNTMzNjggMC4wMzcwMzc4QzMuMzM2MTIgMC4wMzcwMzc5IDMuMTQzMSAwLjA2ODI4MjcgMi45NjA2MyAwLjEyNzIzM1oiIGZpbGw9IndoaXRlIi8+Cjwvc3ZnPgo=',
+				$this->get_menu_item_position()
+			);
 
-		add_submenu_page(
-			self::SLUG,
-			$this->get_current_tab_title() . ' &lsaquo; ' . esc_html__( 'Settings', 'easy-wp-smtp' ),
-			esc_html__( 'Settings', 'easy-wp-smtp' ),
-			$access_capability,
-			self::SLUG,
-			[ $this, 'display' ]
-		);
+			add_submenu_page(
+				self::SLUG,
+				$this->get_current_tab_title() . ' &lsaquo; ' . esc_html__( 'Settings', 'easy-wp-smtp' ),
+				esc_html__( 'Settings', 'easy-wp-smtp' ),
+				$access_capability,
+				self::SLUG,
+				[ $this, 'display' ]
+			);
 
-		add_submenu_page(
-			self::SLUG,
-			esc_html__( 'Send a Test', 'easy-wp-smtp' ),
-			esc_html__( 'Send a Test', 'easy-wp-smtp' ),
-			$access_capability,
-			self::SLUG . '-tools&tab=test',
-			[ $this, 'display' ]
-		);
+			add_submenu_page(
+				self::SLUG,
+				esc_html__( 'Send a Test', 'easy-wp-smtp' ),
+				esc_html__( 'Send a Test', 'easy-wp-smtp' ),
+				$access_capability,
+				self::SLUG . '-tools&tab=test',
+				[ $this, 'display' ]
+			);
+		}
 
 		foreach ( $this->get_parent_pages() as $page ) {
 			add_submenu_page(
-				self::SLUG,
+				$this->is_top_level_menu_hidden() ? 'options-general.php' : self::SLUG,
 				esc_html( $page->get_title() ),
 				esc_html( $page->get_label() ),
 				$access_capability,
@@ -339,6 +380,18 @@ class Area {
 		<div class="easy-wp-smtp-header">
 			<div class="easy-wp-smtp-header__inner easy-wp-smtp-container">
 				<img class="easy-wp-smtp-header__logo" src="<?php echo esc_url( easy_wp_smtp()->assets_url ); ?>/images/logo.svg" alt="Easy WP SMTP"/>
+
+				<?php if ( $this->is_top_level_menu_hidden() ) : ?>
+					<div class="easy-wp-smtp-header-menu easy-wp-smtp-header__menu">
+						<a href="<?php echo esc_url( $this->get_admin_page_url() ); ?>" class="easy-wp-smtp-header-menu__link<?php echo $this->is_admin_page('general') ? ' easy-wp-smtp-header-menu__link--active' : ''; ?>"><?php esc_html_e( 'General', 'easy-wp-smtp' ); ?></a>
+						<a href="<?php echo esc_url( $this->get_admin_page_url( self::SLUG . '-tools', 'test' ) ); ?>" class="easy-wp-smtp-header-menu__link"><?php esc_html_e( 'Send a Test', 'easy-wp-smtp' ); ?></a>
+
+						<?php foreach ( $this->get_parent_pages() as $parent_page ) : ?>
+							<a href="<?php echo esc_url( $parent_page->get_link() ); ?>" class="easy-wp-smtp-header-menu__link<?php echo $this->is_admin_page('tools') ? ' easy-wp-smtp-header-menu__link--active' : ''; ?>"><?php echo esc_html( $parent_page->get_label() ); ?></a>
+						<?php endforeach; ?>
+					</div>
+				<?php endif; ?>
+
 				<a class="easy-wp-smtp-header__help-link" href="<?php echo esc_url( easy_wp_smtp()->get_utm_url( 'https://easywpsmtp.com/docs/', [ 'medium' => 'Top Header', 'content' => 'Help Link' ] ) ); ?>" target="_blank" rel="noopener noreferrer">
 					<svg width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg"><g clip-path="url(#a)" fill="currentColor"><path d="M8 14.222A6.222 6.222 0 1 1 8 1.778a6.222 6.222 0 0 1 0 12.444zm0 .89A7.111 7.111 0 1 0 8 .888 7.111 7.111 0 0 0 8 15.11z" stroke="#53536B" stroke-width=".444"/><path d="M5.56 6.032a.21.21 0 0 0 .214.22h.734c.122 0 .22-.1.236-.223.08-.583.48-1.008 1.193-1.008.61 0 1.168.305 1.168 1.039 0 .564-.333.824-.858 1.218-.598.435-1.072.942-1.038 1.766l.003.193a.222.222 0 0 0 .222.219h.72a.222.222 0 0 0 .223-.222V9.14c0-.638.243-.824.898-1.32.541-.412 1.105-.869 1.105-1.828C10.38 4.649 9.246 4 8.004 4c-1.126 0-2.36.524-2.444 2.032zm1.384 5.123c0 .473.378.824.898.824.541 0 .914-.35.914-.824 0-.491-.374-.836-.915-.836-.52 0-.897.345-.897.836z"/></g><defs><clipPath id="a"><path fill="#fff" d="M0 0h16v16H0z"/></clipPath></defs></svg>
 					<?php esc_html_e( 'Help', 'easy-wp-smtp' ); ?>
@@ -815,16 +868,21 @@ class Area {
 	 *
 	 * @return string
 	 */
-	public function get_admin_page_url( $page = '' ) {
+	public function get_admin_page_url( $page = '', $tab = '' ) {
 
 		if ( empty( $page ) ) {
 			$page = self::SLUG;
 		}
 
-		return add_query_arg(
-			'page',
-			$page,
-			WP::admin_url( 'admin.php' )
+		$args = [
+			'page' => $page,
+		];
+
+		if ( ! empty( $tab ) ) {
+			$args['tab'] = $tab;
+		}
+
+		return add_query_arg( $args, WP::admin_url( 'admin.php' )
 		);
 	}
 
@@ -844,6 +902,23 @@ class Area {
 		$this->remove_unrelated_actions( 'admin_notices' );
 		$this->remove_unrelated_actions( 'all_admin_notices' );
 		$this->remove_unrelated_actions( 'network_admin_notices' );
+	}
+
+	/**
+	 * Whether top level menu is hidden.
+	 *
+	 * @since 2.0.1
+	 *
+	 * @return bool
+	 */
+	public function is_top_level_menu_hidden() {
+
+		// Apply changes after settings update.
+		if ( isset( $_POST['easy-wp-smtp-post'] ) && isset( $_GET['tab'] ) && $_GET['tab'] === 'misc' ) {
+			return ! empty( $_POST['easy-wp-smtp']['general']['top_level_menu_hidden'] );
+		}
+
+		return Options::init()->get( 'general', 'top_level_menu_hidden' );
 	}
 
 	/**

@@ -785,6 +785,7 @@ class Options {
 							case 'allow_smtp_insecure_ssl':
 							case 'am_notifications_hidden':
 							case 'email_delivery_errors_hidden':
+							case 'top_level_menu_hidden':
 							case 'uninstall':
 								$options[ $group ][ $option_name ] = (bool) $option_value;
 								break;

@@ -4,7 +4,7 @@ Tags: mail, wordpress smtp, phpmailer, smtp, wp_mail, email, gmail, outgoing mai
 Requires at least: 5.2
 Tested up to: 6.1
 Requires PHP: 5.6
-Stable tag: 2.0.0
+Stable tag: 2.0.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -19,6 +19,7 @@ Install Easy WP SMTP and you'll resolve your email delivery issues.
 Easy WP SMTP allows you to configure and send all outgoing emails via 4 transactional mailers or an SMTP server. This will prevent your emails from landing in the spam folder and improve your deliverability.
 
 You can resolve your email deliverability issues by configuring one of these mailers:
+
 * SendLayer (recommended)
 * Mailgun
 * Sendinblue
@@ -113,6 +114,10 @@ On the Email Test page you can send a test email to your own email address, to m
 
 Once you click the "Send Test Email" button, by default a predefined email template (HTML or plain text) will be sent. But if you prefer, you can also define your own subject and email content in the Email Test settings.
 
+### Other Notes
+
+Inspired by [WP Mail SMTP](http://wordpress.org/plugins/wp-mail-smtp/) plugin
+
 == Installation ==
 
 1. Install Easy WP SMTP either via the WordPress.org plugin repository or by uploading the files to your server. (See instructions on <a href="http://www.wpbeginner.com/beginners-guide/step-by-step-guide-to-install-a-wordpress-plugin-for-beginners/" rel="friend">how to install a WordPress plugin</a>)
@@ -139,11 +144,10 @@ And we will try to help out as soon as possible.
 5. Email Test page
 6. Debug Events page
 
-== Other Notes ==
-
-Inspired by [WP Mail SMTP](http://wordpress.org/plugins/wp-mail-smtp/) plugin
-
 == Changelog ==
+
+= 2.0.1 =
+* Added "Compact Mode" option. It allows condensing navigation and moves Easy WP SMTP under the WordPress Settings menu.
 
 = 2.0.0 =
 * Added SendLayer, Mailgun, Sendinblue, and SMTP.com email provider integrations.

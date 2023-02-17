@@ -294,6 +294,30 @@ class MiscTab extends PageAbstract {
 						</div>
 					</div>
 
+					<!-- Hide Top Level Menu -->
+					<div id="easy-wp-smtp-setting-row-top_level_menu_hidden" class="easy-wp-smtp-row easy-wp-smtp-setting-row">
+						<div class="easy-wp-smtp-setting-row__label">
+							<label for="easy-wp-smtp-setting-top_level_menu_hidden">
+								<?php esc_html_e( 'Compact Mode', 'easy-wp-smtp' ); ?>
+							</label>
+						</div>
+						<div class="easy-wp-smtp-setting-row__field">
+							<label class="easy-wp-smtp-toggle" for="easy-wp-smtp-setting-top_level_menu_hidden">
+								<input name="easy-wp-smtp[general][top_level_menu_hidden]" type="checkbox"
+											 value="true" <?php checked( true, $options->get( 'general', 'top_level_menu_hidden' ) ); ?>
+											 id="easy-wp-smtp-setting-top_level_menu_hidden"
+								/>
+								<span class="easy-wp-smtp-toggle__switch"></span>
+								<span class="easy-wp-smtp-toggle__label easy-wp-smtp-toggle__label--checked"><?php esc_html_e( 'On', 'easy-wp-smtp' ); ?></span>
+								<span class="easy-wp-smtp-toggle__label easy-wp-smtp-toggle__label--unchecked"><?php esc_html_e( 'Off', 'easy-wp-smtp' ); ?></span>
+							</label>
+
+							<div class="desc">
+								<?php esc_html_e( 'Enabling this will condense navigation and move Easy WP SMTP under the WordPress Settings menu.', 'easy-wp-smtp' ); ?>
+							</div>
+						</div>
+					</div>
+
 					<!-- Uninstall -->
 					<div id="easy-wp-smtp-setting-row-uninstall" class="easy-wp-smtp-row easy-wp-smtp-setting-row">
 						<div class="easy-wp-smtp-setting-row__label">
@@ -345,6 +369,7 @@ class MiscTab extends PageAbstract {
 			'domain_check_do_not_send',
 			'do_not_send',
 			'allow_smtp_insecure_ssl',
+			'top_level_menu_hidden',
 			'uninstall',
 		];
 

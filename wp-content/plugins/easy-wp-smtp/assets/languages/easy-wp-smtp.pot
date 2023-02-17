@@ -1,13 +1,13 @@
 msgid ""
 msgstr ""
-"Project-Id-Version: Easy WP SMTP 2.0.0\n"
+"Project-Id-Version: Easy WP SMTP 2.0.1\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/easy-wp-smtp\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2023-02-13T16:30:32+00:00\n"
+"POT-Creation-Date: 2023-02-15T22:02:41+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.7.1\n"
 "X-Domain: easy-wp-smtp\n"
@@ -15,8 +15,10 @@ msgstr ""
 #. Plugin Name of the plugin
 #. Author of the plugin
 #: inc/deprecated/class-easywpsmtp-admin.php:38
-#: src/Admin/Area.php:177
-#: src/Admin/Area.php:178
+#: src/Admin/Area.php:209
+#: src/Admin/Area.php:210
+#: src/Admin/Area.php:217
+#: src/Admin/Area.php:218
 msgid "Easy WP SMTP"
 msgstr ""
 
@@ -30,12 +32,12 @@ msgid "Fix your WordPress email delivery by sending them via a transactional ema
 msgstr ""
 
 #: inc/deprecated/class-easywpsmtp-admin.php:25
-#: src/Admin/Area.php:280
+#: src/Admin/Area.php:321
 msgid "Are you sure want to clear log?"
 msgstr ""
 
 #: inc/deprecated/class-easywpsmtp-admin.php:26
-#: src/Admin/Area.php:281
+#: src/Admin/Area.php:322
 msgid "Log cleared."
 msgstr ""
 
@@ -226,7 +228,7 @@ msgid "No"
 msgstr ""
 
 #: inc/deprecated/class-easywpsmtp-admin.php:312
-#: src/Admin/Area.php:275
+#: src/Admin/Area.php:316
 #: src/Admin/Pages/DebugEventsTab.php:150
 #: src/Admin/UserFeedback.php:95
 msgid "Yes"
@@ -487,9 +489,9 @@ msgstr ""
 
 #: inc/deprecated/class-easywpsmtp.php:440
 #: inc/deprecated/class-easywpsmtp.php:448
-#: src/Admin/Area.php:188
-#: src/Admin/Area.php:189
-#: src/Admin/Area.php:795
+#: src/Admin/Area.php:228
+#: src/Admin/Area.php:229
+#: src/Admin/Area.php:848
 #: src/Admin/Pages/SettingsTab.php:35
 msgid "Settings"
 msgstr ""
@@ -499,81 +501,86 @@ msgid "Please refresh the page and try again."
 msgstr ""
 
 #. translators: %s - Mailer anchor link.
-#: src/Admin/Area.php:133
+#: src/Admin/Area.php:164
 msgid "Thanks for using Easy WP SMTP! To complete the plugin setup and start sending emails, <strong>please select and configure your <a href=\"%s\">Mailer</a></strong>."
 msgstr ""
 
-#: src/Admin/Area.php:197
-#: src/Admin/Area.php:198
+#: src/Admin/Area.php:237
+#: src/Admin/Area.php:238
+#: src/Admin/Area.php:387
 #: src/Admin/Pages/TestTab.php:103
 msgid "Send a Test"
 msgstr ""
 
-#: src/Admin/Area.php:258
+#: src/Admin/Area.php:299
 msgid "Changes that you made to the settings are not saved!"
 msgstr ""
 
-#: src/Admin/Area.php:260
-#: src/Admin/Area.php:274
+#: src/Admin/Area.php:301
+#: src/Admin/Area.php:315
 #: src/Admin/Pages/DebugEventsTab.php:152
 msgid "Heads up!"
 msgstr ""
 
-#: src/Admin/Area.php:262
+#: src/Admin/Area.php:303
 msgid "<p>The Default (PHP) mailer is currently selected, but is not recommended because in most cases it does not resolve email delivery issues.</p><p>Please consider selecting and configuring one of the other mailers.</p>"
 msgstr ""
 
-#: src/Admin/Area.php:265
+#: src/Admin/Area.php:306
 #: src/Admin/PageAbstract.php:191
 msgid "Save Settings"
 msgstr ""
 
-#: src/Admin/Area.php:266
-#: src/Admin/Area.php:276
+#: src/Admin/Area.php:307
+#: src/Admin/Area.php:317
 #: src/Admin/Pages/DebugEventsTab.php:148
 msgid "Cancel"
 msgstr ""
 
-#: src/Admin/Area.php:267
+#: src/Admin/Area.php:308
 msgid "Warning icon"
 msgstr ""
 
-#: src/Admin/Area.php:273
+#: src/Admin/Area.php:314
 msgid "Icon"
 msgstr ""
 
-#: src/Admin/Area.php:277
+#: src/Admin/Area.php:318
 #: src/Admin/Pages/DebugEventsTab.php:151
 msgid "OK"
 msgstr ""
 
-#: src/Admin/Area.php:278
+#: src/Admin/Area.php:319
 #: src/Admin/Pages/DebugEventsTab.php:153
 msgid "An error occurred!"
 msgstr ""
 
-#: src/Admin/Area.php:344
+#: src/Admin/Area.php:386
+msgid "General"
+msgstr ""
+
+#: src/Admin/Area.php:397
 msgid "Help"
 msgstr ""
 
 #. translators: %1$s - WP.org link; %2$s - same WP.org link.
-#: src/Admin/Area.php:369
+#: src/Admin/Area.php:422
 msgid "Please rate <strong>Easy WP SMTP</strong> <a href=\"%1$s\" target=\"_blank\" rel=\"noopener noreferrer\">&#9733;&#9733;&#9733;&#9733;&#9733;</a> on <a href=\"%2$s\" target=\"_blank\" rel=\"noopener noreferrer\">WordPress.org</a> to help us spread the word."
 msgstr ""
 
-#: src/Admin/Area.php:777
+#: src/Admin/Area.php:830
 msgid "Educational notice for this mailer was successfully dismissed."
 msgstr ""
 
-#: src/Admin/Area.php:794
+#: src/Admin/Area.php:847
 msgid "Go to Easy WP SMTP Settings page"
 msgstr ""
 
-#: src/Admin/Area.php:802
+#: src/Admin/Area.php:855
 msgid "Go to EasyWPSMTP.com documentation page"
 msgstr ""
 
-#: src/Admin/Area.php:803
+#: src/Admin/Area.php:856
 msgid "Docs"
 msgstr ""
 
@@ -875,7 +882,7 @@ msgid "Search Events"
 msgstr ""
 
 #: src/Admin/Pages/DebugEventsTab.php:357
-#: src/Admin/Pages/MiscTab.php:369
+#: src/Admin/Pages/MiscTab.php:394
 #: src/Admin/Pages/SettingsTab.php:120
 msgid "Settings were successfully saved."
 msgstr ""
@@ -948,6 +955,7 @@ msgstr ""
 #: src/Admin/Pages/MiscTab.php:240
 #: src/Admin/Pages/MiscTab.php:272
 #: src/Admin/Pages/MiscTab.php:311
+#: src/Admin/Pages/MiscTab.php:335
 #: src/Admin/Pages/TestTab.php:141
 #: src/Admin/Pages/TestTab.php:159
 #: src/Providers/OptionsAbstract.php:379
@@ -961,6 +969,7 @@ msgstr ""
 #: src/Admin/Pages/MiscTab.php:241
 #: src/Admin/Pages/MiscTab.php:273
 #: src/Admin/Pages/MiscTab.php:312
+#: src/Admin/Pages/MiscTab.php:336
 #: src/Admin/Pages/TestTab.php:142
 #: src/Admin/Pages/TestTab.php:160
 #: src/Providers/OptionsAbstract.php:380
@@ -1030,10 +1039,18 @@ msgid "Disabling this setting is not recommended and should only be done for sta
 msgstr ""
 
 #: src/Admin/Pages/MiscTab.php:301
-msgid "Uninstall Easy WP SMTP"
+msgid "Compact Mode"
 msgstr ""
 
 #: src/Admin/Pages/MiscTab.php:316
+msgid "Enabling this will condense navigation and move Easy WP SMTP under the WordPress Settings menu."
+msgstr ""
+
+#: src/Admin/Pages/MiscTab.php:325
+msgid "Uninstall Easy WP SMTP"
+msgstr ""
+
+#: src/Admin/Pages/MiscTab.php:340
 msgid "Enabling this will REMOVE ALL Easy WP SMTP data upon plugin deletion. All settings will be unrecoverable."
 msgstr ""
 
@@ -1589,7 +1606,7 @@ msgid "Deprecated options were already removed from DB and can't be migrated."
 msgstr ""
 
 #. translators: %1$s - constant that was used; %2$s - file where it was used.
-#: src/Options.php:1009
+#: src/Options.php:1010
 msgid "The value of this field was set using a constant %1$s most likely inside %2$s of your WordPress installation."
 msgstr ""
 
