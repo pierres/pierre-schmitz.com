@@ -161,6 +161,11 @@ class Notifications {
 				continue;
 			}
 
+			// Ignore if license type does not match.
+			if ( ! in_array( easy_wp_smtp()->get_license_type(), $notification['type'], true ) ) {
+				continue;
+			}
+
 			// Ignore if expired.
 			if ( ! empty( $notification['end'] ) && time() > strtotime( $notification['end'] ) ) {
 				continue;

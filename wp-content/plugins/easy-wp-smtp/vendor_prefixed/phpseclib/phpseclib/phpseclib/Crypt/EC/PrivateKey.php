@@ -27,7 +27,7 @@ use EasyWPSMTP\Vendor\phpseclib3\Math\BigInteger;
  *
  * @author  Jim Wigginton <terrafrost@php.net>
  */
-class PrivateKey extends \EasyWPSMTP\Vendor\phpseclib3\Crypt\EC implements \EasyWPSMTP\Vendor\phpseclib3\Crypt\Common\PrivateKey
+final class PrivateKey extends \EasyWPSMTP\Vendor\phpseclib3\Crypt\EC implements \EasyWPSMTP\Vendor\phpseclib3\Crypt\Common\PrivateKey
 {
     use Common\Traits\PasswordProtected;
     /**

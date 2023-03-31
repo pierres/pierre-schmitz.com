@@ -10,6 +10,11 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 	exit;
 }
 
+// Prevent data removal if Pro plugin is active.
+if ( is_plugin_active( 'easy-wp-smtp-pro/easy-wp-smtp.php' ) ) {
+	return;
+}
+
 // Load plugin file.
 require_once 'easy-wp-smtp.php';
 require_once dirname( __FILE__ ) . '/vendor/woocommerce/action-scheduler/action-scheduler.php';
@@ -76,6 +81,36 @@ if ( is_multisite() ) {
 		$wpdb->query( "DROP TABLE IF EXISTS $debug_events_table;" ); // phpcs:ignore WordPress.DB
 
 		/*
+		 * Cleanup Pro plugin data.
+		 */
+		if (
+			function_exists( 'easy_wp_smtp' ) &&
+			is_readable( easy_wp_smtp()->plugin_path . '/src/Pro/Pro.php' )
+		) {
+
+			// Delete logs table.
+			$table = \EasyWPSMTP\Pro\Emails\Logs\Logs::get_table_name();
+			$wpdb->query( "DROP TABLE IF EXISTS $table;" ); // phpcs:ignore WordPress.DB
+
+			// Delete attachments tables.
+			$attachment_files_table = \EasyWPSMTP\Pro\Emails\Logs\Attachments\Attachments::get_attachment_files_table_name();
+			$wpdb->query( "DROP TABLE IF EXISTS $attachment_files_table;" ); // phpcs:ignore WordPress.DB
+
+			$email_attachments_table = \EasyWPSMTP\Pro\Emails\Logs\Attachments\Attachments::get_email_attachments_table_name();
+			$wpdb->query( "DROP TABLE IF EXISTS $email_attachments_table;" ); // phpcs:ignore WordPress.DB
+
+			// Delete all attachments if any.
+			( new \EasyWPSMTP\Pro\Emails\Logs\Attachments\Attachments() )->delete_all_attachments();
+
+			// Delete tracking tables.
+			$tracking_events_table = \EasyWPSMTP\Pro\Emails\Logs\Tracking\Tracking::get_events_table_name();
+			$wpdb->query( "DROP TABLE IF EXISTS $tracking_events_table;" ); // phpcs:ignore WordPress.DB
+
+			$tracking_links_table = \EasyWPSMTP\Pro\Emails\Logs\Tracking\Tracking::get_links_table_name();
+			$wpdb->query( "DROP TABLE IF EXISTS $tracking_links_table;" ); // phpcs:ignore WordPress.DB
+		}
+
+		/*
 		 * Drop all Action Scheduler data and unschedule all plugin ActionScheduler actions.
 		 */
 		( new \EasyWPSMTP\Tasks\Tasks() )->remove_all();
@@ -116,6 +151,36 @@ if ( is_multisite() ) {
 	// Delete debug events table.
 	$debug_events_table = \EasyWPSMTP\Admin\DebugEvents\DebugEvents::get_table_name();
 	$wpdb->query( "DROP TABLE IF EXISTS $debug_events_table;" ); // phpcs:ignore WordPress.DB
+
+	/*
+	 * Cleanup Pro plugin data.
+	 */
+	if (
+		function_exists( 'easy_wp_smtp' ) &&
+		is_readable( easy_wp_smtp()->plugin_path . '/src/Pro/Pro.php' )
+	) {
+
+		// Delete logs table.
+		$table = \EasyWPSMTP\Pro\Emails\Logs\Logs::get_table_name();
+		$wpdb->query( "DROP TABLE IF EXISTS $table;" ); // phpcs:ignore WordPress.DB
+
+		// Delete attachments tables.
+		$attachment_files_table = \EasyWPSMTP\Pro\Emails\Logs\Attachments\Attachments::get_attachment_files_table_name();
+		$wpdb->query( "DROP TABLE IF EXISTS $attachment_files_table;" ); // phpcs:ignore WordPress.DB
+
+		$email_attachments_table = \EasyWPSMTP\Pro\Emails\Logs\Attachments\Attachments::get_email_attachments_table_name();
+		$wpdb->query( "DROP TABLE IF EXISTS $email_attachments_table;" ); // phpcs:ignore WordPress.DB
+
+		// Delete all attachments if any.
+		( new \EasyWPSMTP\Pro\Emails\Logs\Attachments\Attachments() )->delete_all_attachments();
+
+		// Delete tracking tables.
+		$tracking_events_table = \EasyWPSMTP\Pro\Emails\Logs\Tracking\Tracking::get_events_table_name();
+		$wpdb->query( "DROP TABLE IF EXISTS $tracking_events_table;" ); // phpcs:ignore WordPress.DB
+
+		$tracking_links_table = \EasyWPSMTP\Pro\Emails\Logs\Tracking\Tracking::get_links_table_name();
+		$wpdb->query( "DROP TABLE IF EXISTS $tracking_links_table;" ); // phpcs:ignore WordPress.DB
+	}
 
 	/*
 	 * Drop all Action Scheduler data and unschedule all plugin ActionScheduler actions.

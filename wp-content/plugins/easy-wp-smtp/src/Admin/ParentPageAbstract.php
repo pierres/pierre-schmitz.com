@@ -281,17 +281,30 @@ abstract class ParentPageAbstract implements PageInterface {
 		$current_tab = $this->get_current_tab();
 		$page_slug   = $this->slug;
 		?>
-		<div class="easy-wp-smtp-container">
-			<div class="easy-wp-smtp-nav-menu">
-				<div class="easy-wp-smtp-nav-menu__inner">
-					<?php foreach ( $this->tabs as $tab ) : ?>
-						<a href="<?php echo esc_url( $tab->get_link() ); ?>"
-							 class="easy-wp-smtp-nav-menu__item <?php echo $current_tab === $tab->get_slug() ? 'easy-wp-smtp-nav-menu__item--active' : ''; ?>">
-							<?php echo esc_html( $tab->get_label() ); ?>
-						</a>
-					<?php endforeach; ?>
+		<?php if ( count( $this->tabs ) <= 1 ) : ?>
+			<div class="easy-wp-smtp-subheader">
+				<div class="easy-wp-smtp-subheader__inner easy-wp-smtp-container">
+					<div class="easy-wp-smtp-page-title">
+						<?php echo esc_html( $this->get_tab_title( $current_tab ) ); ?>
+					</div>
+					<?php $this->display_after_page_title(); ?>
 				</div>
 			</div>
+		<?php endif; ?>
+
+		<div class="easy-wp-smtp-container">
+			<?php if ( count( $this->tabs ) > 1 ) : ?>
+				<div class="easy-wp-smtp-nav-menu">
+					<div class="easy-wp-smtp-nav-menu__inner">
+						<?php foreach ( $this->tabs as $tab ) : ?>
+							<a href="<?php echo esc_url( $tab->get_link() ); ?>"
+								 class="easy-wp-smtp-nav-menu__item <?php echo $current_tab === $tab->get_slug() ? 'easy-wp-smtp-nav-menu__item--active' : ''; ?>">
+								<?php echo esc_html( $tab->get_label() ); ?>
+							</a>
+						<?php endforeach; ?>
+					</div>
+				</div>
+			<?php endif; ?>
 
 			<div class="easy-wp-smtp-page-content">
 				<?php
@@ -335,6 +348,31 @@ abstract class ParentPageAbstract implements PageInterface {
 				?>
 			</div>
 		</div>
+		<?php
+	}
+
+	/**
+	 * Display some elements after page title.
+	 *
+	 * @since 2.1.0
+	 */
+	private function display_after_page_title() {
+
+		if ( easy_wp_smtp()->is_pro() || ! in_array( $this->get_current_tab(), [ 'reports' ], true ) ) {
+			return;
+		}
+
+		$button_upgrade_link = easy_wp_smtp()->get_upgrade_link(
+			[
+				'medium'  => 'email-reports',
+				'content' => 'upgrade-to-easy-wp-smtp-pro-button-link',
+			]
+		);
+
+		?>
+		<a href="<?php echo esc_url( $button_upgrade_link ); ?>" target="_blank" rel="noopener noreferrer" class="easy-wp-smtp-btn easy-wp-smtp-btn--sm easy-wp-smtp-btn--green">
+			<?php esc_html_e( 'Upgrade to Pro', 'easy-wp-smtp' ); ?>
+		</a>
 		<?php
 	}
 

@@ -5,6 +5,7 @@ namespace EasyWPSMTP\Providers;
 use EasyWPSMTP\ConnectionInterface;
 use EasyWPSMTP\Debug;
 use EasyWPSMTP\MailCatcherInterface;
+use EasyWPSMTP\Options;
 
 /**
  * Class Loader.
@@ -22,7 +23,9 @@ class Loader {
 	 */
 	protected $providers = [
 		'sendlayer'  => 'EasyWPSMTP\Providers\Sendlayer\\',
+		'amazonses'  => 'EasyWPSMTP\Providers\AmazonSES\\',
 		'mailgun'    => 'EasyWPSMTP\Providers\Mailgun\\',
+		'outlook'    => 'EasyWPSMTP\Providers\Outlook\\',
 		'sendinblue' => 'EasyWPSMTP\Providers\Sendinblue\\',
 		'smtpcom'    => 'EasyWPSMTP\Providers\SMTPcom\\',
 		'smtp'       => 'EasyWPSMTP\Providers\SMTP\\',
@@ -129,6 +132,19 @@ class Loader {
 	}
 
 	/**
+	 * Get the provider auth, if exists.
+	 *
+	 * @param string              $provider
+	 * @param ConnectionInterface $connection The Connection object.
+	 *
+	 * @return AuthAbstract|null
+	 */
+	public function get_auth( $provider, $connection = null ) {
+
+		return $this->get_entity( $provider, 'Auth', [ $connection ] );
+	}
+
+	/**
 	 * Get a generic entity based on the request.
 	 *
 	 * @uses  \ReflectionClass
@@ -139,7 +155,7 @@ class Loader {
 	 * @param string $request
 	 * @param array  $args     Entity instantiation arguments.
 	 *
-	 * @return OptionsAbstract|MailerAbstract|null
+	 * @return OptionsAbstract|MailerAbstract|AuthAbstract|null
 	 */
 	protected function get_entity( $provider, $request, $args = []  ) {
 

@@ -2,6 +2,7 @@
 
 namespace EasyWPSMTP\Providers\Mail;
 
+use EasyWPSMTP\Admin\SetupWizard;
 use EasyWPSMTP\Providers\OptionsAbstract;
 
 /**
@@ -18,16 +19,20 @@ class Options extends OptionsAbstract {
 	 */
 	public function __construct() {
 
-		$description = wp_kses(
-			__( 'The Default (none) mailer uses the default PHP mail function and will not improve email deliverability. Please select one of our compatible mailers to start sending emails with Easy WP SMTP.', 'easy-wp-smtp' ),
-			[
-				'strong' => [],
-				'a'      => [
-					'href'   => [],
-					'rel'    => [],
-					'target' => [],
-				],
-			]
+		$description = sprintf(
+			wp_kses( /* translators: %1$s - URL to all mailer doc page. %2$s - URL to the setup wizard. */
+				__( 'You currently have the <strong>Default (none)</strong> mailer selected, which won\'t improve email deliverability. Please select <a href="%1$s" target="_blank" rel="noopener noreferrer">any other email provider</a> and use the easy <a href="%2$s">Setup Wizard</a> to configure it.', 'easy-wp-smtp' ),
+				[
+					'strong' => [],
+					'a'      => [
+						'href'   => [],
+						'rel'    => [],
+						'target' => [],
+					],
+				]
+			),
+			esc_url( easy_wp_smtp()->get_utm_url( 'https://easywpsmtp.com/docs/a-complete-guide-to-easy-wp-smtp-mailers/', 'Default mailer - any other email provider' ) ),
+			esc_url( SetupWizard::get_site_url() )
 		);
 
 		parent::__construct(

@@ -192,7 +192,7 @@ class DebugEventsTab extends PageAbstract {
 				<div class="easy-wp-smtp-meta-box__content">
 					<div class="easy-wp-smtp-row">
 						<div class="easy-wp-smtp-row__desc">
-							<?php esc_html_e( 'On this page, you can view and configure different plugin debugging events to detect email sending issues. You can also view email sending errors.', 'easy-wp-smtp' ); ?>
+							<?php esc_html_e( 'Here, you can view and configure plugin debugging events to find and resolve email sending issues. You’ll also see any email sending errors that occur.', 'easy-wp-smtp' ); ?>
 						</div>
 					</div>
 
@@ -213,7 +213,7 @@ class DebugEventsTab extends PageAbstract {
 									<span class="easy-wp-smtp-toggle__label easy-wp-smtp-toggle__label--static"><?php esc_html_e( 'Email Sending Errors', 'easy-wp-smtp' ); ?></span>
 								</label>
 								<p class="desc">
-									<?php esc_html_e( 'This debug event is always enabled and will record any email sending errors in the table below.', 'easy-wp-smtp' ); ?>
+									<?php esc_html_e( 'The Email Sending Errors debug event is always enabled and records any email sending errors in the table below.', 'easy-wp-smtp' ); ?>
 								</p>
 							</div>
 
@@ -227,7 +227,7 @@ class DebugEventsTab extends PageAbstract {
 									<span class="easy-wp-smtp-toggle__label easy-wp-smtp-toggle__label--static"><?php esc_html_e( 'Debug Email Sending', 'easy-wp-smtp' ); ?></span>
 								</label>
 								<p class="desc">
-									<?php esc_html_e( 'Enable this setting if you would like to debug the email sending process. Once enabled, all debug events will be logged in the table below. We recommend enabling this setting only for shorter debugging periods and disabling it afterwards.', 'easy-wp-smtp' ); ?>
+									<?php esc_html_e( 'Enable this setting to debug the email sending process. All debug events will be logged in the table below. This setting is recommended only for shorter debugging periods. Please disable it once you’re done troubleshooting.', 'easy-wp-smtp' ); ?>
 								</p>
 							</div>
 						</div>
@@ -251,7 +251,7 @@ class DebugEventsTab extends PageAbstract {
 							</select>
 							<p class="desc">
 								<?php
-								esc_html_e( 'Debug events older than the period selected above will be permanently deleted from the database.', 'easy-wp-smtp' );
+								esc_html_e( 'Debug events that fall outside the chosen period will be permanently deleted from the database.', 'easy-wp-smtp' );
 
 								if ( $this->options->is_const_defined( 'debug_events', 'retention_period' ) ) {
 									//phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
@@ -275,7 +275,7 @@ class DebugEventsTab extends PageAbstract {
 			$table->prepare_items();
 
 			?>
-			<form action="<?php echo esc_url( $this->get_link() ); ?>" method="get" class="easy-wp-smtp-debug-events-table">
+			<form  action="<?php echo esc_url( $this->get_link() ); ?>" method="get" class="easy-wp-smtp-debug-events-table easy-wp-smtp-wp-list-table">
 				<input type="hidden" name="page" value="<?php echo esc_attr( Area::SLUG . '-tools' ); ?>" />
 				<input type="hidden" name="tab" value="<?php echo esc_attr( $this->get_slug() ); ?>" />
 			<?php

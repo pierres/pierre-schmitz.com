@@ -2,6 +2,7 @@
 
 namespace EasyWPSMTP\Admin\Pages;
 
+use EasyWPSMTP\Admin\DomainChecker;
 use EasyWPSMTP\Conflicts;
 use EasyWPSMTP\ConnectionInterface;
 use EasyWPSMTP\Debug;
@@ -39,6 +40,51 @@ class TestTab extends PageAbstract {
 	 * @var array
 	 */
 	private $debug = [];
+
+	/**
+	 * Domain Checker API object.
+	 *
+	 * @since 2.1.0
+	 *
+	 * @var DomainChecker|null
+	 */
+	private $domain_checker;
+
+	/**
+	 * Test email sending failed.
+	 *
+	 * @since 2.1.0
+	 *
+	 * @const int
+	 */
+	const FAILED = 0;
+
+	/**
+	 * Test email sent successfully.
+	 *
+	 * @since 2.1.0
+	 *
+	 * @const int
+	 */
+	const SUCCESS = 1;
+
+	/**
+	 * Test email domain check failed.
+	 *
+	 * @since 2.1.0
+	 *
+	 * @const int
+	 */
+	const FAILED_DOMAIN_CHECK = 2;
+
+	/**
+	 * Test email result.
+	 *
+	 * @since 2.1.0
+	 *
+	 * @var int
+	 */
+	private $result = null;
 
 	/**
 	 * Test email POST data.
@@ -233,7 +279,26 @@ class TestTab extends PageAbstract {
 		<?php
 		endif;
 
-		$this->display_debug_details();
+		if ( ! is_null( $this->result ) && $this->result !== self::SUCCESS ) {
+			echo '<div class="easy-wp-smtp-test-email-result">';
+			if ( $this->result === self::FAILED_DOMAIN_CHECK ) {
+				$this->display_domain_check_details();
+			} elseif ( $this->result === self::FAILED ) {
+				$this->display_debug_details();
+			}
+			echo '</div>';
+
+			?>
+			<!-- Scroll to the error container. -->
+			<script>
+				jQuery( function( $ ) {
+					$( 'html, body' ).animate( {
+						scrollTop: $( ".easy-wp-smtp-test-email-result" ).offset().top - 50
+					}, 500 );
+				} );
+			</script>
+			<?php
+		}
 	}
 
 	/**
@@ -297,6 +362,9 @@ class TestTab extends PageAbstract {
 			}
 		}
 
+		// Clear debug before send test email.
+		Debug::clear();
+
 		// Force processing for test email even if email sending is blocked.
 		easy_wp_smtp()->get_processor()->set_force_processing( true );
 
@@ -325,25 +393,42 @@ class TestTab extends PageAbstract {
 		 * Notify a user about the results.
 		 */
 		if ( $result ) {
-			$result_message = esc_html__( 'Test plain text email was sent successfully!', 'easy-wp-smtp' );
+			$connection_options = $this->connection->get_options();
+			$mailer             = $connection_options->get( 'mail', 'mailer' );
+			$email              = $connection_options->get( 'mail', 'from_email' );
+			$domain             = '';
 
-			if ( $is_html ) {
-				$result_message = sprintf(
-				/* translators: %s - "HTML" in bold. */
-					esc_html__( 'Test %s email was sent successfully! Please check your inbox to make sure it is delivered.', 'easy-wp-smtp' ),
-					'<strong>HTML</strong>'
-				);
+			// Add the optional sending domain parameter.
+			if ( in_array( $mailer, [ 'mailgun', 'sendinblue' ], true ) ) {
+				$domain = $connection_options->get( $mailer, 'domain' );
 			}
 
-			WP::add_admin_notice(
-				$result_message,
-				WP::ADMIN_NOTICE_SUCCESS
-			);
+			$this->domain_checker = new DomainChecker( $mailer, $email, $domain );
+
+			$this->result = $this->domain_checker->no_issues() ? self::SUCCESS : self::FAILED_DOMAIN_CHECK;
+
+			if ( $this->result === self::SUCCESS ) {
+				$result_message = esc_html__( 'Test plain text email was sent successfully!', 'easy-wp-smtp' );
+
+				if ( $is_html ) {
+					$result_message = sprintf(
+					/* translators: %s - "HTML" in bold. */
+						esc_html__( 'Test %s email was sent successfully! Please check your inbox to make sure it is delivered.', 'easy-wp-smtp' ),
+						'<strong>HTML</strong>'
+					);
+				}
+
+				WP::add_admin_notice(
+					$result_message,
+					WP::ADMIN_NOTICE_SUCCESS
+				);
+			}
 		} else {
 			// Grab the smtp debugging output.
 			$this->debug['smtp_debug'] = $smtp_debug;
 			$this->debug['smtp_error'] = wp_strip_all_tags( $phpmailer->ErrorInfo );
 			$this->debug['error_log']  = $this->get_debug_messages( $phpmailer, $smtp_debug );
+			$this->result              = self::FAILED;
 		}
 
 		// Update test email data.
@@ -405,7 +490,7 @@ class TestTab extends PageAbstract {
 			<meta http-equiv="X-UA-Compatible" content="IE=edge">
 			<meta name="viewport" content="width=device-width">
 			<title>Easy WP SMTP Test Email</title>
-			<style type="text/css">@media only screen and (max-width: 599px) {table.body .container {width: 95% !important;}.header {padding: 15px 15px 12px 15px !important;}.header img {width: 200px !important;height: auto !important;}.content, .aside {padding: 30px 40px 20px 40px !important;}}</style>
+			<style type="text/css">@media only screen and (max-width: 599px) {table.body .container {width: 95% !important;}.header {padding: 30px 15px 30px 15px !important;}.content, .education-main {padding: 40px 30px !important;} .education-footer {padding: 20px 30px !important;}.guaranty-badge {display: none !important;}.education-footer p {text-align: left !important;}}</style>
 		</head>
 		<body style="height: 100% !important; width: 100% !important; min-width: 100%; -moz-box-sizing: border-box; -webkit-box-sizing: border-box; box-sizing: border-box; -webkit-font-smoothing: antialiased !important; -moz-osx-font-smoothing: grayscale !important; -ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; color: #3A3A56; font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; font-weight: normal; padding: 0; margin: 0; Margin: 0; font-size: 14px; mso-line-height-rule: exactly; line-height: 140%; background-color: #F2F2F4; text-align: center;">
 		<table border="0" cellpadding="0" cellspacing="0" width="100%" height="100%" class="body" style="border-collapse: collapse; border-spacing: 0; vertical-align: top; mso-table-lspace: 0pt; mso-table-rspace: 0pt; -ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; height: 100% !important; width: 100% !important; min-width: 100%; -moz-box-sizing: border-box; -webkit-box-sizing: border-box; box-sizing: border-box; -webkit-font-smoothing: antialiased !important; -moz-osx-font-smoothing: grayscale !important; background-color: #F2F2F4; color: #3A3A56; font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; font-weight: normal; padding: 0; margin: 0; Margin: 0; text-align: left; font-size: 14px; mso-line-height-rule: exactly; line-height: 140%;">
@@ -421,18 +506,18 @@ class TestTab extends PageAbstract {
 						</tr>
 						<!-- Content -->
 						<tr style="padding: 0; vertical-align: top; text-align: left;">
-							<td align="left" valign="top" class="content" style="word-wrap: break-word; -webkit-hyphens: auto; -moz-hyphens: auto; hyphens: auto; border-collapse: collapse !important; vertical-align: top; mso-table-lspace: 0pt; mso-table-rspace: 0pt; -ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; color: #3A3A56; font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; font-weight: normal; margin: 0; Margin: 0; text-align: left; font-size: 14px; mso-line-height-rule: exactly; line-height: 140%; background-color: #ffffff; padding: 60px 60px 60px 60px; border-radius: 6px;">
+							<td align="left" valign="top" class="content" style="word-wrap: break-word; -webkit-hyphens: auto; -moz-hyphens: auto; hyphens: auto; border-collapse: collapse !important; vertical-align: top; mso-table-lspace: 0pt; mso-table-rspace: 0pt; -ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; color: #3A3A56; font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; font-weight: normal; margin: 0; Margin: 0; text-align: left; font-size: 14px; mso-line-height-rule: exactly; line-height: 140%; background-color: #ffffff; padding-top: 60px;padding-bottom: 60px;padding-left: 60px;padding-right: 60px;">
 								<div class="success" style="text-align: center;">
-									<p class="check" style="-ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; color: #3A3A56; font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; font-weight: normal; padding: 0; font-size: 14px; mso-line-height-rule: exactly; line-height: 140%; margin: 0 auto 20px auto; Margin: 0 auto 20px auto; text-align: center;">
-										<img src="<?php echo esc_url( easy_wp_smtp()->plugin_url . '/assets/images/email/icon-check.png' ); ?>" width="62" alt="Success" style="outline: none; text-decoration: none; max-width: 100%; clear: both; -ms-interpolation-mode: bicubic; display: block; margin: 0 auto 0 auto; Margin: 0 auto 0 auto; width: 62px;">
+									<p class="check" style="-ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; color: #3A3A56; font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; font-weight: normal; padding: 0; font-size: 14px; mso-line-height-rule: exactly; line-height: 140%; margin: 0 auto 40px auto; Margin: 0 auto 40px auto; text-align: center;">
+										<img src="<?php echo esc_url( easy_wp_smtp()->plugin_url . '/assets/images/email/icon-check.png' ); ?>" width="64" alt="Success" style="outline: none; text-decoration: none; max-width: 100%; clear: both; -ms-interpolation-mode: bicubic; display: block; margin: 0 auto 0 auto; Margin: 0 auto 0 auto; width: 64px;">
 									</p>
-									<p class="text-extra-large text-center congrats" style="-ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; color: #3A3A56; font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; font-weight: bold; padding: 0; mso-line-height-rule: exactly; line-height: 140%; font-size: 20px; text-align: center; margin: 0 0 40px 0; Margin: 0 0 40px 0;">
+									<p class="text-extra-large text-center congrats" style="-ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; color: #09092C; font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; padding: 0; mso-line-height-rule: exactly; line-height: 140%; font-size: 20px; text-align: center; margin: 0 0 40px 0; Margin: 0 0 40px 0;">
 										Congrats, test email was sent successfully!
 									</p>
-									<p class="text-large" style="-ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; color: #3A3A56; font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; font-weight: normal; padding: 0; text-align: left; mso-line-height-rule: exactly; line-height: 140%; margin: 0 0 20px 0; Margin: 0 0 20px 0; font-size: 16px;">
+									<p class="text-large" style="-ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; color: #3A3A56; font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; font-weight: normal; padding: 0; text-align: left; mso-line-height-rule: exactly; line-height: 140%; margin: 0 0 40px 0; Margin: 0 0 40px 0; font-size: 16px;">
 										Thank you for using Easy WP SMTP. We're on a mission to make sure your emails actually get delivered.
 									</p>
-									<p class="signature" style="-ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; color: #3A3A56; font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; font-weight: normal; padding: 0; font-size: 14px; mso-line-height-rule: exactly; line-height: 140%; text-align: left; margin: 20px 0 5px 0; Margin: 20px 0 5px 0;">
+									<p class="signature" style="-ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; color: #3A3A56; font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; font-weight: normal; padding: 0; font-size: 14px; mso-line-height-rule: exactly; line-height: 140%; text-align: left; margin: 0 0 10px 0; Margin: 0 0 10px 0;">
 										<img src="<?php echo esc_url( easy_wp_smtp()->plugin_url . '/assets/images/email/signature.png' ); ?>" width="180" alt="Signature" style="outline: none; text-decoration: none; max-width: 100%; clear: both; -ms-interpolation-mode: bicubic; width: 180px; display: block; margin: 0 0 0 0; Margin: 0 0 0 0;">
 									</p>
 									<p style="-ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; color: #6F6F84; font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; font-weight: normal; padding: 0; text-align: left; font-size: 14px; mso-line-height-rule: exactly; line-height: 140%; margin: 0 0 0px 0; Margin: 0 0 0px 0;">
@@ -442,6 +527,77 @@ class TestTab extends PageAbstract {
 								</div>
 							</td>
 						</tr>
+
+						<?php if ( ! easy_wp_smtp()->is_pro() ) : ?>
+							<tr style="padding: 0; vertical-align: top; text-align: left;">
+								<td align="left" valign="top" class="education-main" style="word-wrap: break-word; -webkit-hyphens: auto; -moz-hyphens: auto; hyphens: auto; border-collapse: collapse !important; vertical-align: top; mso-table-lspace: 0pt; mso-table-rspace: 0pt; -ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; color: #444; font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; font-weight: normal; margin: 0; Margin: 0; font-size: 14px; mso-line-height-rule: exactly; line-height: 140%; background-color: #DBEDE6; text-align: left !important; padding-top: 60px;padding-bottom: 60px;padding-left: 60px;padding-right: 60px;">
+									<h6 style="padding: 0; color: #02150D; word-wrap: normal; font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; font-weight: bold; mso-line-height-rule: exactly; line-height: 130%; font-size: 17px; text-align: left; margin: 0 0 20px 0; Margin: 0 0 20px 0;">
+										Unlock Powerful Features with Easy WP SMTP Pro
+									</h6>
+
+									<table style="border-collapse: collapse; border-spacing: 0; padding: 0; vertical-align: top; text-align: left; mso-table-lspace: 0pt; mso-table-rspace: 0pt; -ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; width: 100% !important;">
+										<tr style="padding: 0; vertical-align: top; text-align: left;">
+											<td style="word-wrap: break-word; -webkit-hyphens: auto; -moz-hyphens: auto; hyphens: auto; border-collapse: collapse !important; vertical-align: top; mso-table-lspace: 0pt; mso-table-rspace: 0pt; -ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; color: #444; font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; font-weight: normal; margin: 0; Margin: 0; mso-line-height-rule: exactly; text-align: left; padding: 0 0 0 0; line-height: 100%;width: 67%;">
+												<table style="border-collapse: collapse; border-spacing: 0; padding: 0; vertical-align: top; text-align: left; mso-table-lspace: 0pt; mso-table-rspace: 0pt; -ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; width: 100% !important; margin-bottom: 5px;">
+													<tr style="padding: 0; vertical-align: top; text-align: left;">
+														<td style="word-wrap: break-word; -webkit-hyphens: auto; -moz-hyphens: auto; hyphens: auto; border-collapse: collapse !important; vertical-align: top; mso-table-lspace: 0pt; mso-table-rspace: 0pt; -ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; color: #444; font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; font-weight: normal; margin: 0; Margin: 0; mso-line-height-rule: exactly; text-align: left; line-height: 140%; padding-bottom: 15px; padding-top: 0; padding-right: 10px;padding-left: 0; width: 16px;">
+															<img src="<?php echo esc_url( easy_wp_smtp()->plugin_url . '/assets/images/email/check.png' ); ?>" width="16" alt="Check" style="outline: none; text-decoration: none; max-width: 100%; clear: both; -ms-interpolation-mode: bicubic; width: 16px; vertical-align: middle;">
+														</td>
+														<td style="word-wrap: break-word; -webkit-hyphens: auto; -moz-hyphens: auto; hyphens: auto; border-collapse: collapse !important; vertical-align: top; mso-table-lspace: 0pt; mso-table-rspace: 0pt; -ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; color: #444; font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; font-weight: normal; margin: 0; Margin: 0; mso-line-height-rule: exactly; text-align: left; line-height: 140%; padding-bottom: 15px; padding-top: 0; padding-right: 0;padding-left: 0;font-size: 15px;">
+															Detailed Email Logs
+														</td>
+													</tr>
+													<tr style="padding: 0; vertical-align: top; text-align: left;">
+														<td style="word-wrap: break-word; -webkit-hyphens: auto; -moz-hyphens: auto; hyphens: auto; border-collapse: collapse !important; vertical-align: top; mso-table-lspace: 0pt; mso-table-rspace: 0pt; -ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; color: #444; font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; font-weight: normal; margin: 0; Margin: 0; mso-line-height-rule: exactly; text-align: left; line-height: 140%; padding-bottom: 15px; padding-top: 0; padding-right: 10px;padding-left: 0;width: 16px;">
+															<img src="<?php echo esc_url( easy_wp_smtp()->plugin_url . '/assets/images/email/check.png' ); ?>" width="16" alt="Check" style="outline: none; text-decoration: none; max-width: 100%; clear: both; -ms-interpolation-mode: bicubic; width: 16px;vertical-align: middle;">
+														</td>
+														<td style="word-wrap: break-word; -webkit-hyphens: auto; -moz-hyphens: auto; hyphens: auto; border-collapse: collapse !important; vertical-align: top; mso-table-lspace: 0pt; mso-table-rspace: 0pt; -ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; color: #444; font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; font-weight: normal; margin: 0; Margin: 0; mso-line-height-rule: exactly; text-align: left; line-height: 140%; padding-bottom: 15px; padding-top: 0; padding-right: 0;padding-left: 0;font-size: 15px;">
+															Complete Email Reports
+														</td>
+													</tr>
+													<tr style="padding: 0; vertical-align: top; text-align: left;">
+														<td style="word-wrap: break-word; -webkit-hyphens: auto; -moz-hyphens: auto; hyphens: auto; border-collapse: collapse !important; vertical-align: top; mso-table-lspace: 0pt; mso-table-rspace: 0pt; -ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; color: #444; font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; font-weight: normal; margin: 0; Margin: 0; mso-line-height-rule: exactly; text-align: left; line-height: 140%; padding-bottom: 15px; padding-top: 0; padding-right: 10px;padding-left: 0;width: 16px;">
+															<img src="<?php echo esc_url( easy_wp_smtp()->plugin_url . '/assets/images/email/check.png' ); ?>" width="16" alt="Check" style="outline: none; text-decoration: none; max-width: 100%; clear: both; -ms-interpolation-mode: bicubic; width: 16px;vertical-align: middle;">
+														</td>
+														<td style="word-wrap: break-word; -webkit-hyphens: auto; -moz-hyphens: auto; hyphens: auto; border-collapse: collapse !important; vertical-align: top; mso-table-lspace: 0pt; mso-table-rspace: 0pt; -ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; color: #444; font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; font-weight: normal; margin: 0; Margin: 0; mso-line-height-rule: exactly; text-align: left; line-height: 140%; padding-bottom: 15px; padding-top: 0; padding-right: 0;padding-left: 0;font-size: 15px;">
+															Enhanced Weekly Email Summary
+														</td>
+													</tr>
+												</table>
+
+												<table class="button" style="border-collapse: collapse; border-spacing: 0; padding: 0; vertical-align: top; text-align: left; mso-table-lspace: 0pt; mso-table-rspace: 0pt; -ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; width: 100%; max-width: 202px;">
+													<tr style="padding: 0; vertical-align: top; text-align: left;">
+														<td class="button-inner" style="word-wrap: break-word; -webkit-hyphens: auto; -moz-hyphens: auto; hyphens: auto; border-collapse: collapse !important; vertical-align: top; mso-table-lspace: 0pt; mso-table-rspace: 0pt; -ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; color: #444; font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; font-weight: normal; margin: 0; Margin: 0; text-align: left; font-size: 14px; mso-line-height-rule: exactly; line-height: 100%; padding: 0 0 0 0;">
+															<table style="border-collapse: collapse; border-spacing: 0; padding: 0; vertical-align: top; text-align: left; mso-table-lspace: 0pt; mso-table-rspace: 0pt; -ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; width: 100% !important;">
+																<tr style="padding: 0; vertical-align: top; text-align: left;">
+																	<td style="word-wrap: break-word; -webkit-hyphens: auto; -moz-hyphens: auto; hyphens: auto; border-collapse: collapse !important; vertical-align: top; mso-table-lspace: 0pt; mso-table-rspace: 0pt; -ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; font-weight: normal; padding: 0; margin: 0; Margin: 0; font-size: 16px; text-align: center; color: #ffffff; background: #0F8A56; border-radius: 4px; mso-line-height-rule: exactly; line-height: 100%;">
+																		<a href="<?php echo esc_url( easy_wp_smtp()->get_upgrade_link( 'email-test' ) ); ?>" style="-ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; margin: 0; Margin: 0; font-family: Helvetica, Arial, sans-serif; font-weight: bold; color: #ffffff; text-decoration: none; display: inline-block; border: 0 solid #0F8A56; mso-line-height-rule: exactly; line-height: 100%; padding: 12px 20px 12px 20px; font-size: 16px; text-align: center; width: 100%; padding-left: 0; padding-right: 0;">
+																			Upgrade to Pro Today
+																		</a>
+																	</td>
+																</tr>
+															</table>
+														</td>
+													</tr>
+												</table>
+											</td>
+
+											<td class="guaranty-badge" align="right" style="word-wrap: break-word; -webkit-hyphens: auto; -moz-hyphens: auto; hyphens: auto; border-collapse: collapse !important; vertical-align: top; mso-table-lspace: 0pt; mso-table-rspace: 0pt; -ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; color: #444; font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; font-weight: normal; margin: 0; Margin: 0; mso-line-height-rule: exactly; text-align: right; padding: 0 0 0 0; line-height: 140%; width: 33%;">
+												<img src="<?php echo esc_url( easy_wp_smtp()->plugin_url . '/assets/images/email/14days-badge.png' ); ?>" width="155" alt="Check" style="outline: none; text-decoration: none; max-width: 100%; clear: both; -ms-interpolation-mode: bicubic; width: 155px;">
+											</td>
+										</tr>
+									</table>
+								</td>
+							</tr>
+
+							<tr style="padding: 0; vertical-align: top; text-align: left;">
+								<td align="left" valign="top" class="education-footer" style="word-wrap: break-word; -webkit-hyphens: auto; -moz-hyphens: auto; hyphens: auto; border-collapse: collapse !important; vertical-align: top; mso-table-lspace: 0pt; mso-table-rspace: 0pt; -ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; color: #444; font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; font-weight: normal; margin: 0; Margin: 0; font-size: 14px; mso-line-height-rule: exactly; line-height: 140%; background-color: #B7DCCC; text-align: left !important; padding-top: 20px;padding-bottom: 20px;padding-left: 55px;padding-right: 55px;">
+									<p class="text-large last" style="-ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; color: #042315; font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; font-weight: normal; padding: 0; mso-line-height-rule: exactly; line-height: 140%; font-size: 14px; text-align: center; margin: 0 0 0 0; Margin: 0 0 0 0;">
+										Upgrade to the Pro and <span style="font-weight:bold;color:#0B613C;text-transform: uppercase;">save 50% today</span>, automatically applied at checkout.
+									</p>
+								</td>
+							</tr>
+						<?php endif; ?>
 					</table>
 				</td>
 			</tr>
@@ -464,12 +620,42 @@ class TestTab extends PageAbstract {
 	 */
 	public static function get_email_message_text() {
 
-		return 'Congrats, test email was sent successfully!
+		// phpcs:disable
+		if ( easy_wp_smtp()->is_pro() ) {
+			// Easy WP SMTP Pro paid installed.
+			$message =
+'Congrats, test email was sent successfully!
 
 Thank you for using Easy WP SMTP. We\'re on a mission to make sure your emails actually get delivered.
 
 - Jared Atchison
 CEO, SendLayer';
+		} else {
+			// Free Easy WP SMTP is installed.
+			$message =
+'Congrats, test email was sent successfully!
+
+Thank you for trying out Easy WP SMTP. We are on a mission to make sure your emails actually get delivered.
+
+If you find this free plugin useful, please consider giving Easy WP SMTP Pro a try!
+
+https://easywpsmtp.com/lite-upgrade/
+
+Unlock These Powerful Features with Easy WP SMTP Pro:
+
++ Log all emails and export your email logs in different formats
++ Send emails with Amazon SES / Microsoft 365
++ Track opens and clicks to measure engagement
++ Resend failed emails from your email log
++ Create email reports and graphs
++ Get help from our world-class support team
+
+- Jared Atchison
+CEO, SendLayer';
+		}
+		// phpcs:enable
+
+		return $message;
 	}
 
 	/**
@@ -910,8 +1096,6 @@ CEO, SendLayer';
 
 		/**
 		 * [any] - PHP 7.4.x and PCRE library issues.
-		 *
-		 * @see https://wordpress.org/support/topic/cant-send-emails-using-php-7-4/
 		 */
 		if (
 			version_compare( phpversion(), '7.4', '>=' ) &&
@@ -1028,11 +1212,11 @@ CEO, SendLayer';
 		];
 
 		?>
-		<div class="easy-wp-smtp-test-email-debug">
-			<div id="message" class="notice-error notice-inline">
-				<p><?php esc_html_e( 'There was a problem while sending the test email.', 'easy-wp-smtp' ); ?></p>
-			</div>
+		<div id="message" class="notice-error notice-inline">
+			<p><?php esc_html_e( 'There was a problem while sending the test email.', 'easy-wp-smtp' ); ?></p>
+		</div>
 
+		<div class="easy-wp-smtp-test-email-debug">
 			<h2><?php echo esc_html( $debug['title'] ); ?></h2>
 
 			<?php
@@ -1056,23 +1240,87 @@ CEO, SendLayer';
 
 			<h2><?php esc_html_e( 'Need support?', 'easy-wp-smtp' ); ?></h2>
 
-			<p>
-				<?php
-				printf(
-					wp_kses( /* translators: %s - Easy WP SMTP support forum URL. */
-						__( 'You can <a href="%s" target="_blank" rel="noopener noreferrer">create a support thread</a> on the WordPress.org support forums.', 'easy-wp-smtp' ),
-						array(
-							'a' => array(
-								'href'   => array(),
-								'rel'    => array(),
-								'target' => array(),
-							),
-						)
-					),
-					'https://wordpress.org/support/plugin/easy-wp-smtp/'
-				);
-				?>
-			</p>
+			<?php if ( easy_wp_smtp()->is_pro() ) : ?>
+
+				<p>
+					<?php
+					printf(
+						wp_kses( /* translators: %s - EasyWPSMTP.com account area link. */
+							__( 'As a Easy WP SMTP Pro user you have access to Easy WP SMTP priority support. Please log in to your EasyWPSMTP.com account and <a href="%s" target="_blank" rel="noopener noreferrer">submit a support ticket</a>.', 'easy-wp-smtp' ),
+							array(
+								'a' => array(
+									'href'   => array(),
+									'rel'    => array(),
+									'target' => array(),
+								),
+							)
+						),
+						// phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+						esc_url( easy_wp_smtp()->get_utm_url( 'https://easywpsmtp.com/account/support/', [ 'medium' => 'email-test', 'content' => 'submit a support ticket' ] ) )
+					);
+					?>
+				</p>
+
+			<?php else : ?>
+
+				<p>
+					<?php esc_html_e( 'Easy WP SMTP is a free plugin, and the team behind SendLayer maintains it to give back to the WordPress community.', 'easy-wp-smtp' ); ?>
+				</p>
+
+				<p>
+					<?php
+					printf(
+						wp_kses( /* translators: %s - EasyWPSMTP.com URL. */
+							__( 'To access our world class support, please <a href="%s" target="_blank" rel="noopener noreferrer">upgrade to Easy WP SMTP Pro</a>. Along with getting expert support, you will also get Notification controls, Email Logging, and integrations for Amazon SES, Office 365, and Outlook.com.', 'easy-wp-smtp' ),
+							array(
+								'a' => array(
+									'href'   => array(),
+									'target' => array(),
+									'rel'    => array(),
+								),
+							)
+						),
+						esc_url( easy_wp_smtp()->get_upgrade_link( 'email-test-fail' ) )
+					)
+					?>
+				</p>
+
+				<p>
+					<?php
+					printf(
+						wp_kses( /* Translators: %s - discount value 50% */
+							__( 'As a valued Easy WP SMTP user, you will get <span class="price-off">%s off regular pricing</span>, automatically applied at checkout!', 'easy-wp-smtp' ),
+							array(
+								'span' => array(
+									'class' => array(),
+								),
+							)
+						),
+						'50%'
+					);
+					?>
+				</p>
+
+				<p>
+					<?php
+					printf(
+						wp_kses( /* translators: %1$s - Easy WP SMTP support forum URL, %2$s - EasyWPSMTP.com URL. */
+							__( 'Alternatively, we also offer limited support on the WordPress.org support forums. You can <a href="%1$s" target="_blank" rel="noopener noreferrer">create a support thread</a> there, but please understand that free support is not guaranteed and is limited to simple issues. If you have an urgent or complex issue, then please consider <a href="%2$s" target="_blank" rel="noopener noreferrer">upgrading to Easy WP SMTP Pro</a> to access our priority support ticket system.', 'easy-wp-smtp' ),
+							array(
+								'a' => array(
+									'href'   => array(),
+									'rel'    => array(),
+									'target' => array(),
+								),
+							)
+						),
+						'https://wordpress.org/support/plugin/easy-wp-smtp/',
+						esc_url( easy_wp_smtp()->get_upgrade_link( 'email-test-fail' ) )
+					);
+					?>
+				</p>
+
+			<?php endif; ?>
 
 			<p>
 				<em><?php esc_html_e( 'Please copy the error log message below into the support ticket.', 'easy-wp-smtp' ); ?></em>
@@ -1096,15 +1344,27 @@ CEO, SendLayer';
 				<?php echo wp_kses( $this->debug['error_log'], $allowed_tags ); ?>
 			</div>
 		</div>
+		<?php
+	}
 
-		<!-- Scroll to the error container. -->
-		<script>
-			jQuery( function( $ ) {
-				$( 'html, body' ).animate( {
-					scrollTop: $( ".easy-wp-smtp-test-email-debug" ).offset().top - 50
-				}, 500 );
-			} );
-		</script>
+	/**
+	 * Display the domain check details.
+	 *
+	 * @since 2.1.0
+	 */
+	protected function display_domain_check_details() {
+
+		if ( empty( $this->domain_checker ) || $this->domain_checker->no_issues() ) {
+			return;
+		}
+		?>
+		<?php if ( $this->domain_checker->is_supported_mailer() ) : ?>
+			<div class="notice-warning notice-inline">
+				<p><?php esc_html_e( 'The test email might have sent, but its deliverability should be improved.', 'easy-wp-smtp' ); ?></p>
+			</div>
+		<?php endif; ?>
+
+		<?php echo $this->domain_checker->get_results_html(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 		<?php
 	}
 }

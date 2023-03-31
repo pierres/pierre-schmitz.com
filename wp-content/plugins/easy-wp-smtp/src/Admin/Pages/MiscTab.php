@@ -2,9 +2,12 @@
 
 namespace EasyWPSMTP\Admin\Pages;
 
+use EasyWPSMTP\Admin\Area;
 use EasyWPSMTP\Admin\PageAbstract;
 use EasyWPSMTP\Options;
 use EasyWPSMTP\UsageTracking\UsageTracking;
+use EasyWPSMTP\Reports\Emails\Summary as SummaryReportEmail;
+use EasyWPSMTP\Tasks\Reports\SummaryEmailTask as SummaryReportEmailTask;
 use EasyWPSMTP\WP;
 
 /**
@@ -318,6 +321,108 @@ class MiscTab extends PageAbstract {
 						</div>
 					</div>
 
+					<?php if ( apply_filters( 'easy_wp_smtp_admin_pages_misc_tab_show_usage_tracking_setting', true ) ) : ?>
+						<!-- Usage Tracking -->
+						<div id="easy-wp-smtp-setting-row-usage-tracking" class="easy-wp-smtp-row easy-wp-smtp-setting-row">
+							<div class="easy-wp-smtp-setting-row__label">
+								<label for="easy-wp-smtp-setting-usage-tracking">
+									<?php esc_html_e( 'Allow Usage Tracking', 'easy-wp-smtp' ); ?>
+								</label>
+							</div>
+							<div class="easy-wp-smtp-setting-row__field">
+								<label class="easy-wp-smtp-toggle" for="easy-wp-smtp-setting-usage-tracking">
+									<input name="easy-wp-smtp[general][<?php echo esc_attr( UsageTracking::SETTINGS_SLUG ); ?>]"
+												 type="checkbox" value="true" id="easy-wp-smtp-setting-usage-tracking"
+												 <?php checked( true, $options->get( 'general', UsageTracking::SETTINGS_SLUG ) ); ?>
+									/>
+									<span class="easy-wp-smtp-toggle__switch"></span>
+									<span class="easy-wp-smtp-toggle__label easy-wp-smtp-toggle__label--checked"><?php esc_html_e( 'On', 'easy-wp-smtp' ); ?></span>
+									<span class="easy-wp-smtp-toggle__label easy-wp-smtp-toggle__label--unchecked"><?php esc_html_e( 'Off', 'easy-wp-smtp' ); ?></span>
+								</label>
+
+								<p class="desc">
+									<?php esc_html_e( 'By allowing us to track usage data we can better help you because we know with which WordPress configurations, themes and plugins we should test.', 'easy-wp-smtp' ); ?>
+								</p>
+							</div>
+						</div>
+					<?php endif; ?>
+
+					<!-- Hide Dashboard Widget -->
+					<div id="easy-wp-smtp-setting-row-dashboard_widget_hidden" class="easy-wp-smtp-row easy-wp-smtp-setting-row">
+						<div class="easy-wp-smtp-setting-row__label">
+							<label for="easy-wp-smtp-setting-dashboard_widget_hidden">
+								<?php esc_html_e( 'Hide Dashboard Widget', 'easy-wp-smtp' ); ?>
+							</label>
+						</div>
+						<div class="easy-wp-smtp-setting-row__field">
+							<label class="easy-wp-smtp-toggle" for="easy-wp-smtp-setting-dashboard_widget_hidden">
+								<input name="easy-wp-smtp[general][dashboard_widget_hidden]" type="checkbox"
+											 value="true" <?php checked( true, $options->get( 'general', 'dashboard_widget_hidden' ) ); ?>
+											 id="easy-wp-smtp-setting-dashboard_widget_hidden"
+								/>
+								<span class="easy-wp-smtp-toggle__switch"></span>
+								<span class="easy-wp-smtp-toggle__label easy-wp-smtp-toggle__label--checked"><?php esc_html_e( 'On', 'easy-wp-smtp' ); ?></span>
+								<span class="easy-wp-smtp-toggle__label easy-wp-smtp-toggle__label--unchecked"><?php esc_html_e( 'Off', 'easy-wp-smtp' ); ?></span>
+							</label>
+
+							<p class="desc">
+								<?php esc_html_e( 'Hide the Easy WP SMTP Dashboard Widget.', 'easy-wp-smtp' ); ?>
+							</p>
+						</div>
+					</div>
+
+					<!-- Summary Report Email -->
+					<div id="easy-wp-smtp-setting-row-summary-report-email" class="easy-wp-smtp-row easy-wp-smtp-setting-row">
+						<div class="easy-wp-smtp-setting-row__label">
+							<label for="easy-wp-smtp-setting-summary-report-email">
+								<?php esc_html_e( 'Disable Email Summaries', 'easy-wp-smtp' ); ?>
+							</label>
+						</div>
+						<div class="easy-wp-smtp-setting-row__field">
+							<label class="easy-wp-smtp-toggle" for="easy-wp-smtp-setting-summary-report-email">
+								<input name="easy-wp-smtp[general][<?php echo esc_attr( SummaryReportEmail::SETTINGS_SLUG ); ?>]"
+											 type="checkbox" id="easy-wp-smtp-setting-summary-report-email" value="true"
+											 <?php checked( true, SummaryReportEmail::is_disabled() ); ?>
+											 <?php disabled( $options->is_const_defined( 'general', SummaryReportEmail::SETTINGS_SLUG ) || ( easy_wp_smtp()->is_pro() && empty( Options::init()->get( 'logs', 'enabled' ) ) ) ); ?>
+								/>
+								<span class="easy-wp-smtp-toggle__switch"></span>
+								<span class="easy-wp-smtp-toggle__label easy-wp-smtp-toggle__label--checked"><?php esc_html_e( 'On', 'easy-wp-smtp' ); ?></span>
+								<span class="easy-wp-smtp-toggle__label easy-wp-smtp-toggle__label--unchecked"><?php esc_html_e( 'Off', 'easy-wp-smtp' ); ?></span>
+							</label>
+
+							<p class="desc">
+								<?php esc_html_e( 'Disable Email Summaries weekly delivery.', 'easy-wp-smtp' ); ?>
+							</p>
+							<p class="desc">
+								<?php
+								if ( easy_wp_smtp()->is_pro() && empty( Options::init()->get( 'logs', 'enabled' ) ) ) {
+									echo wp_kses(
+										sprintf( /* translators: %s - Email Log settings url. */
+											__( 'Please enable <a href="%s">Email Logging</a> first, before this setting can be configured.', 'easy-wp-smtp' ),
+											esc_url( easy_wp_smtp()->get_admin()->get_admin_page_url( Area::SLUG . '&tab=logs' ) )
+										),
+										[
+											'a' => [
+												'href' => [],
+											],
+										]
+									);
+								} else {
+									printf(
+										'<a href="%1$s" target="_blank">%2$s</a>',
+										esc_url( SummaryReportEmail::get_preview_link() ),
+										esc_html__( 'View Email Summary Example', 'easy-wp-smtp' )
+									);
+								}
+
+								if ( $options->is_const_defined( 'general', SummaryReportEmail::SETTINGS_SLUG ) ) {
+									echo '<br>' . $options->get_const_set_message( 'EasyWPSMTP_SUMMARY_REPORT_EMAIL_DISABLED' ); //phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+								}
+								?>
+							</p>
+						</div>
+					</div>
+
 					<!-- Uninstall -->
 					<div id="easy-wp-smtp-setting-row-uninstall" class="easy-wp-smtp-row easy-wp-smtp-setting-row">
 						<div class="easy-wp-smtp-setting-row__label">
@@ -371,6 +476,9 @@ class MiscTab extends PageAbstract {
 			'allow_smtp_insecure_ssl',
 			'top_level_menu_hidden',
 			'uninstall',
+			UsageTracking::SETTINGS_SLUG,
+			SummaryReportEmail::SETTINGS_SLUG,
+			'dashboard_widget_hidden',
 		];
 
 		// Unchecked checkboxes doesn't exist in $_POST, so we need to ensure we actually have them in data to save.
@@ -385,6 +493,17 @@ class MiscTab extends PageAbstract {
 
 		if ( empty( $data['deprecated']['debug_log_enabled'] ) ) {
 			$data['deprecated']['debug_log_enabled'] = false;
+		}
+
+		$is_summary_report_email_opt_changed = $options->is_option_changed(
+			$options->parse_boolean( $data['general'][ SummaryReportEmail::SETTINGS_SLUG ] ),
+			'general',
+			SummaryReportEmail::SETTINGS_SLUG
+		);
+
+		// If this option was changed, cancel summary report email task.
+		if ( $is_summary_report_email_opt_changed ) {
+			( new SummaryReportEmailTask() )->cancel();
 		}
 
 		// All the sanitization is done there.

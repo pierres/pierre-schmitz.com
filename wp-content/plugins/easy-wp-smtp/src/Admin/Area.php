@@ -46,7 +46,7 @@ class Area {
 	 *
 	 * @var array
 	 */
-	public static $pages_registered = [ 'general', 'tools' ];
+	public static $pages_registered = [ 'general', 'logs', 'tools', 'reports' ];
 
 	/**
 	 * Area constructor.
@@ -77,11 +77,17 @@ class Area {
 		// Add the options page.
 		add_action( 'admin_menu', [ $this, 'add_admin_options_page' ] );
 
+		// Register on load Email Log admin menu hook.
+		add_action( 'load-' . $this->get_admin_page_hook( 'logs' ), [ $this, 'maybe_redirect_email_log_menu_to_email_log_settings_tab' ] );
+
 		// Enqueue admin area scripts and styles.
 		add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_assets' ] );
 
 		// Process the admin page forms actions.
 		add_action( 'admin_init', [ $this, 'process_actions' ] );
+
+		// Display custom notices based on the error/success codes.
+		add_action( 'admin_init', [ $this, 'display_custom_auth_notices' ] );
 
 		// Display notice instructing the user to complete plugin setup.
 		add_action( 'admin_init', [ $this, 'display_setup_notice' ] );
@@ -104,6 +110,7 @@ class Area {
 		}
 
 		( new UserFeedback() )->init();
+		( new SetupWizard() )->hooks();
 
 		// Enable "Compact Mode" menu view.
 		if ( $this->is_top_level_menu_hidden() ) {
@@ -134,6 +141,34 @@ class Area {
 					}
 				}
 			} );
+		}
+	}
+
+	/**
+	 * Display custom notices based on the error/success codes.
+	 *
+	 * @since 2.1.0
+	 */
+	public function display_custom_auth_notices() {
+
+		$error   = isset( $_GET['error'] ) ? sanitize_key( $_GET['error'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$success = isset( $_GET['success'] ) ? sanitize_key( $_GET['success'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+
+		if ( empty( $error ) && empty( $success ) ) {
+			return;
+		}
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		switch ( $error ) {
+			case 'oauth_invalid_state':
+				WP::add_admin_notice(
+					esc_html__( 'There was an error while processing the authentication request. The state key is invalid. Please try again.', 'easy-wp-smtp' ),
+					WP::ADMIN_NOTICE_ERROR
+				);
+				break;
 		}
 	}
 
@@ -242,15 +277,46 @@ class Area {
 			);
 		}
 
+		$parent_slug = $this->is_top_level_menu_hidden() ? 'options-general.php' : self::SLUG;
+
+		add_submenu_page(
+			$parent_slug,
+			esc_html__( 'Email Log', 'easy-wp-smtp' ),
+			esc_html__( 'Email Log', 'easy-wp-smtp' ),
+			$this->get_logs_access_capability(),
+			self::SLUG . '-logs',
+			[ $this, 'display' ]
+		);
+
 		foreach ( $this->get_parent_pages() as $page ) {
 			add_submenu_page(
-				$this->is_top_level_menu_hidden() ? 'options-general.php' : self::SLUG,
+				$parent_slug,
 				esc_html( $page->get_title() ),
 				esc_html( $page->get_label() ),
 				$access_capability,
 				self::SLUG . '-' . $page->get_slug(),
 				[ $this, 'display' ]
 			);
+		}
+	}
+
+	/**
+	 * Redirect the "Email Log" WP menu link to the "Email Log" setting tab for lite version of the plugin.
+	 *
+	 * @since 2.1.0
+	 */
+	public function maybe_redirect_email_log_menu_to_email_log_settings_tab() {
+
+		/**
+		 * The Email Logs object to be used for loading the Email Log page.
+		 *
+		 * @var \EasyWPSMTP\Admin\PageAbstract $logs
+		 */
+		$logs = $this->generate_display_logs_object();
+
+		if ( $logs instanceof \EasyWPSMTP\Admin\Pages\Logs ) {
+			wp_safe_redirect( $logs->get_link() );
+			exit;
 		}
 	}
 
@@ -271,7 +337,17 @@ class Area {
 		add_filter(
 			'admin_body_class',
 			function ( $classes ) {
-				$classes .= ' easy-wp-smtp-admin-page-body easy-wp-smtp-lite';
+				$classes .= ' easy-wp-smtp-admin-page-body';
+
+				if ( easy_wp_smtp()->is_pro() ) {
+					$classes .= ' easy-wp-smtp-pro';
+				} else {
+					$classes .= ' easy-wp-smtp-lite';
+				}
+
+				if ( apply_filters( 'easy_wp_smtp_admin_area_full_width_page', false ) ) {
+					$classes .= ' easy-wp-smtp-full-width-page';
+				}
 
 				return $classes;
 			}
@@ -296,6 +372,7 @@ class Area {
 		);
 
 		$script_data = [
+			'text_provider_remove'    => esc_html__( 'Are you sure you want to reset the current provider connection? You will need to immediately create a new one to be able to send emails.', 'easy-wp-smtp' ),
 			'text_settings_not_saved' => esc_html__( 'Changes that you made to the settings are not saved!', 'easy-wp-smtp' ),
 			'default_mailer_notice'   => [
 				'title'         => esc_html__( 'Heads up!', 'easy-wp-smtp' ),
@@ -308,8 +385,33 @@ class Area {
 				'icon_alt'      => esc_html__( 'Warning icon', 'easy-wp-smtp' ),
 			],
 			'plugin_url'              => easy_wp_smtp()->plugin_url,
+			'education'               => [
+				'upgrade_icon_lock' => '<svg aria-hidden="true" focusable="false" data-prefix="fas" data-icon="lock" class="svg-inline--fa fa-lock fa-w-14" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><path fill="currentColor" d="M400 224h-24v-72C376 68.2 307.8 0 224 0S72 68.2 72 152v72H48c-26.5 0-48 21.5-48 48v192c0 26.5 21.5 48 48 48h352c26.5 0 48-21.5 48-48V272c0-26.5-21.5-48-48-48zm-104 0H152v-72c0-39.7 32.3-72 72-72s72 32.3 72 72v72z"></path></svg>',
+				'upgrade_title'     => esc_html__( '%name% is a PRO Feature', 'easy-wp-smtp' ),
+				'upgrade_content'   => esc_html__( 'Sorry, but the %name% mailer isn’t available in the lite version. Please upgrade to PRO to unlock this mailer and much more.', 'easy-wp-smtp' ),
+				'upgrade_button'    => esc_html__( 'Upgrade to Pro', 'easy-wp-smtp' ),
+				'upgrade_url'       => add_query_arg( 'discount', 'SMTPLITEUPGRADE', easy_wp_smtp()->get_upgrade_link( '' ) ),
+				'upgrade_bonus'     => '<div class="easy-wp-smtp-upgrade-bonus-badge"><span>' .
+											sprintf(
+												wp_kses( /* Translators: %s - discount value 50%. */
+													__( '<strong>%s OFF</strong> for Easy WP SMTP users, applied at checkout.', 'easy-wp-smtp' ),
+													[
+														'strong' => [],
+													]
+												),
+												'50%'
+											)
+											. '</span></div>',
+				'upgrade_doc'       => sprintf(
+					'<a href="%1$s" target="_blank" rel="noopener noreferrer">%2$s</a>',
+					// phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+					esc_url( easy_wp_smtp()->get_utm_url( 'https://easywpsmtp.com/docs/how-to-upgrade-easy-wp-smtp-to-pro-version/', [ 'medium' => 'plugin-settings', 'content' => 'Pro Mailer Popup - Already purchased' ] ) ),
+					esc_html__( 'Already purchased?', 'easy-wp-smtp' )
+				),
+			],
 			'all_mailers_supports'    => easy_wp_smtp()->get_providers()->get_supports_all(),
 			'nonce'                   => wp_create_nonce( 'easy-wp-smtp-admin' ),
+			'is_network_admin'        => is_network_admin(),
 			'ajax_url'                => admin_url( 'admin-ajax.php' ),
 			'icon'                    => esc_html__( 'Icon', 'easy-wp-smtp' ),
 			'heads_up_title'          => esc_html__( 'Heads up!', 'easy-wp-smtp' ),
@@ -351,6 +453,26 @@ class Area {
 			false
 		);
 
+		/*
+		 * Logs page.
+		 */
+		if ( $this->is_admin_page( 'logs' ) ) {
+			wp_enqueue_style(
+				'easy-wp-smtp-admin-logs',
+				apply_filters( 'easy_wp_smtp_admin_enqueue_assets_logs_css', '' ),
+				[ 'easy-wp-smtp-admin' ],
+				EasyWPSMTP_PLUGIN_VERSION
+			);
+
+			wp_enqueue_script(
+				'easy-wp-smtp-admin-logs',
+				apply_filters( 'easy_wp_smtp_admin_enqueue_assets_logs_js', '' ),
+				[ 'easy-wp-smtp-admin' ],
+				EasyWPSMTP_PLUGIN_VERSION,
+				false
+			);
+		}
+
 		/**
 		 * Fires after enqueue plugin assets.
 		 *
@@ -385,9 +507,10 @@ class Area {
 					<div class="easy-wp-smtp-header-menu easy-wp-smtp-header__menu">
 						<a href="<?php echo esc_url( $this->get_admin_page_url() ); ?>" class="easy-wp-smtp-header-menu__link<?php echo $this->is_admin_page('general') ? ' easy-wp-smtp-header-menu__link--active' : ''; ?>"><?php esc_html_e( 'General', 'easy-wp-smtp' ); ?></a>
 						<a href="<?php echo esc_url( $this->get_admin_page_url( self::SLUG . '-tools', 'test' ) ); ?>" class="easy-wp-smtp-header-menu__link"><?php esc_html_e( 'Send a Test', 'easy-wp-smtp' ); ?></a>
+						<a href="<?php echo esc_url( $this->get_admin_page_url( self::SLUG . '-logs' ) ); ?>" class="easy-wp-smtp-header-menu__link<?php echo $this->is_admin_page('logs') ? ' easy-wp-smtp-header-menu__link--active' : ''; ?>"><?php esc_html_e( 'Email Log', 'easy-wp-smtp' ); ?></a>
 
 						<?php foreach ( $this->get_parent_pages() as $parent_page ) : ?>
-							<a href="<?php echo esc_url( $parent_page->get_link() ); ?>" class="easy-wp-smtp-header-menu__link<?php echo $this->is_admin_page('tools') ? ' easy-wp-smtp-header-menu__link--active' : ''; ?>"><?php echo esc_html( $parent_page->get_label() ); ?></a>
+							<a href="<?php echo esc_url( $parent_page->get_link() ); ?>" class="easy-wp-smtp-header-menu__link<?php echo $this->is_admin_page( $parent_page->get_slug() ) ? ' easy-wp-smtp-header-menu__link--active' : ''; ?>"><?php echo esc_html( $parent_page->get_label() ); ?></a>
 						<?php endforeach; ?>
 					</div>
 				<?php endif; ?>
@@ -465,6 +588,24 @@ class Area {
 						<?php
 						break;
 
+					case self::SLUG . '-logs':
+						/**
+						 * The Email Logs object to be used for loading the Email Log page.
+						 *
+						 * @var \EasyWPSMTP\Admin\PageAbstract $logs
+						 */
+						$logs = $this->generate_display_logs_object();
+
+						$is_archive = easy_wp_smtp()->is_pro() && easy_wp_smtp()->pro->get_logs()->is_archive();
+						?>
+
+						<div class="easy-wp-smtp-page easy-wp-smtp-page-logs <?php echo $is_archive ? 'easy-wp-smtp-page-logs-archive' : 'easy-wp-smtp-page-logs-single'; ?>">
+							<?php $logs->display(); ?>
+						</div>
+
+						<?php
+						break;
+
 					default:
 						foreach ( $this->get_parent_pages() as $parent_page ) {
 							if ( $page === self::SLUG . '-' . $parent_page->get_slug() ) {
@@ -481,6 +622,46 @@ class Area {
 		</div>
 
 		<?php
+	}
+
+	/**
+	 * Generate the appropriate Email Log page object used for displaying the Email Log page.
+	 *
+	 * @since 2.1.0
+	 *
+	 * @return \EasyWPSMTP\Admin\PageAbstract
+	 */
+	public function generate_display_logs_object() {
+
+		// Store generated object to make sure that it's created only once.
+		static $logs_object = null;
+
+		$logs_class = apply_filters( 'easy_wp_smtp_admin_display_get_logs_fqcn', \EasyWPSMTP\Admin\Pages\Logs::class );
+
+		if ( $logs_object === null ) {
+			$logs_object = new $logs_class();
+		}
+
+		return $logs_object;
+	}
+
+	/**
+	 * Get email logs access capability.
+	 *
+	 * @since 2.1.0
+	 *
+	 * @return string
+	 */
+	public function get_logs_access_capability() {
+
+		/**
+		 * Filter email logs access capability.
+		 *
+		 * @since 2.1.0
+		 *
+		 * @param string $capability Email logs access capability.
+		 */
+		return apply_filters( 'easy_wp_smtp_admin_area_get_logs_access_capability', 'manage_options' );
 	}
 
 	/**
@@ -573,10 +754,17 @@ class Area {
 
 		if ( $pages === null ) {
 			$pages = [
-				'tools' => new Pages\Tools(
+				'reports' => new Pages\EmailReports(
 					[
-						'test'         => Pages\TestTab::class,
-						'debug-events' => Pages\DebugEventsTab::class,
+						'reports' => Pages\EmailReportsTab::class,
+					]
+				),
+				'tools'   => new Pages\Tools(
+					[
+						'test'             => Pages\TestTab::class,
+						'export'           => Pages\ExportTab::class,
+						'action-scheduler' => Pages\ActionSchedulerTab::class,
+						'debug-events'     => Pages\DebugEventsTab::class,
 					]
 				),
 			];
@@ -603,8 +791,10 @@ class Area {
 
 		if ( empty( $this->pages ) ) {
 			$this->pages = [
-				'settings' => new Pages\SettingsTab(),
-				'misc'     => new Pages\MiscTab(),
+				'settings'    => new Pages\SettingsTab(),
+				'logs'        => new Pages\LogsTab(),
+				'misc'        => new Pages\MiscTab(),
+				'auth'        => new Pages\AuthTab(),
 			];
 		}
 
@@ -779,6 +969,14 @@ class Area {
 		$task = sanitize_key( $_POST['task'] );
 
 		switch ( $task ) {
+			case 'pro_banner_dismiss':
+				if ( ! check_ajax_referer( 'easy-wp-smtp-admin', 'nonce', false ) ) {
+					break;
+				}
+
+				update_user_meta( get_current_user_id(), 'easy_wp_smtp_pro_banner_dismissed', true );
+				$data['message'] = esc_html__( 'Easy WP SMTP Pro related message was successfully dismissed.', 'easy-wp-smtp' );
+				break;
 
 			case 'notice_dismiss':
 				$dismissal_response = $this->dismiss_notice_via_ajax();
@@ -840,6 +1038,23 @@ class Area {
 	 * @return array
 	 */
 	public function add_plugin_action_link( $links ) {
+
+		// Do not register lite plugin action links if on pro version.
+		if ( easy_wp_smtp()->is_pro() ) {
+			return $links;
+		}
+
+		$custom['pro'] = sprintf(
+			'<a href="%1$s" aria-label="%2$s" target="_blank" rel="noopener noreferrer" 
+				style="color: #00a32a; font-weight: 700;" 
+				onmouseover="this.style.color=\'#008a20\';" 
+				onmouseout="this.style.color=\'#00a32a\';"
+				>%3$s</a>',
+			// phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+			esc_url( easy_wp_smtp()->get_upgrade_link( [ 'medium' => 'all-plugins', 'content' => 'Get Easy WP SMTP Pro' ] ) ),
+			esc_attr__( 'Upgrade to Easy WP SMTP Pro', 'easy-wp-smtp' ),
+			esc_html__( 'Get Easy WP SMTP Pro', 'easy-wp-smtp' )
+		);
 
 		$custom['settings'] = sprintf(
 			'<a href="%s" aria-label="%s">%s</a>',
@@ -956,5 +1171,31 @@ class Area {
 				unset( $wp_filter[ $action ]->callbacks[ $priority ][ $name ] );
 			}
 		}
+	}
+
+	/**
+	 * Get admin page hook.
+	 *
+	 * @since 2.1.0
+	 *
+	 * @param string $tab Tab slug.
+	 *
+	 * @return string
+	 */
+	public function get_admin_page_hook( $tab = '' ) {
+
+		if ( $this->is_top_level_menu_hidden() ) {
+			$hook = 'settings_page_' . self::SLUG;
+		} elseif ( ! empty( $tab ) ) {
+			$hook = self::SLUG . '_page_' . self::SLUG;
+		} else {
+			$hook = 'toplevel_page_' . self::SLUG;
+		}
+
+		if ( ! empty( $tab ) ) {
+			$hook .= '-' . $tab;
+		}
+
+		return $hook;
 	}
 }

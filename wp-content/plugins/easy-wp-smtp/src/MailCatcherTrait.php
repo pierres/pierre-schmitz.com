@@ -42,6 +42,15 @@ trait MailCatcherTrait {
 	private $is_test_email = false;
 
 	/**
+	 * Whether the current email is a Setup Wizard test email.
+	 *
+	 * @since 2.1.0
+	 *
+	 * @var bool
+	 */
+	private $is_setup_wizard_test_email = false;
+
+	/**
 	 * Holds the most recent error message.
 	 *
 	 * @since 2.0.0
@@ -76,9 +85,10 @@ trait MailCatcherTrait {
 		}
 
 		// Reset email related variables.
-		$this->debug_event_id = false;
-		$this->is_test_email  = false;
-		$this->latest_error   = '';
+		$this->debug_event_id             = false;
+		$this->is_test_email              = false;
+		$this->is_setup_wizard_test_email = false;
+		$this->latest_error               = '';
 
 		$is_emailing_blocked = false;
 
@@ -96,6 +106,8 @@ trait MailCatcherTrait {
 				if ( trim( $header[1] ) === 'EasyWPSMTP/Admin/Test' ) {
 					$is_emailing_blocked = false;
 					$this->is_test_email = true;
+				} elseif ( trim( $header[1] ) === 'EasyWPSMTP/Admin/SetupWizard/Test' ) {
+					$this->is_setup_wizard_test_email = true;
 				}
 			}
 		}
@@ -397,5 +409,17 @@ trait MailCatcherTrait {
 			// Use the PHPMailer::send method to send an email (same behaviour as WP does).
 			return parent::send();
 		}
+	}
+
+	/**
+	 * Whether the current email is a Setup Wizard test email.
+	 *
+	 * @since 2.1.0
+	 *
+	 * @return bool
+	 */
+	public function is_setup_wizard_test_email() {
+
+		return $this->is_setup_wizard_test_email;
 	}
 }

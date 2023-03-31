@@ -53,7 +53,8 @@ EasyWPSMTP.Admin.Settings = EasyWPSMTP.Admin.Settings || ( function( document, w
 			app.settingsForm = $( '.easy-wp-smtp-connection-settings-form' );
 
 			// If there are screen options we have to move them.
-			$( '#screen-meta-links, #screen-meta' ).prependTo( '#easy-wp-smtp-header-temp' ).show();
+			$( '#screen-meta-links, #screen-meta' ).prependTo( '#easy-wp-smtp-header-temp' );
+			$( '#screen-meta-links' ).show();
 
 			app.bindActions();
 
@@ -124,7 +125,13 @@ EasyWPSMTP.Admin.Settings = EasyWPSMTP.Admin.Settings || ( function( document, w
 			app.beforeSaveChecks();
 
 			// Open/close meta box.
-			$( '.easy-wp-smtp-meta-box__header' ).on( 'click', function() {
+			$( '.easy-wp-smtp-meta-box__header' ).on( 'click', function( e ) {
+
+				// Prevent meta box close/open if link or button was clicked.
+				if ( e.target.tagName === 'A' || e.target.tagName === 'BUTTON' ) {
+					return;
+				}
+
 				$( this ).closest( '.easy-wp-smtp-meta-box' ).toggleClass( 'easy-wp-smtp-meta-box--closed' );
 			} );
 
@@ -134,6 +141,17 @@ EasyWPSMTP.Admin.Settings = EasyWPSMTP.Admin.Settings || ( function( document, w
 			} );
 
 			$( '.easy-wp-smtp-mailers-picker__input', app.settingsForm ).on( 'change', function() {
+				var $input = $( this );
+
+				if ( $input.prop( 'disabled' ) ) {
+
+					// Educational Popup.
+					if ( $input.hasClass( 'easy-wp-smtp-educate' ) ) {
+						app.education.upgradeMailer( $input );
+					}
+
+					return false;
+				}
 
 				// Deselect the current mailer.
 				$( '.easy-wp-smtp-mailers-picker__mailer', app.settingsForm ).removeClass( 'easy-wp-smtp-mailers-picker__mailer--active' );
@@ -174,6 +192,58 @@ EasyWPSMTP.Admin.Settings = EasyWPSMTP.Admin.Settings || ( function( document, w
 				}
 			} );
 
+			// Dismiss Pro banner at the bottom of the page.
+			$( '.js-easy-wp-smtp-pro-banner-dismiss', app.pageHolder ).on( 'click', function(e) {
+				e.preventDefault();
+
+				$.ajax( {
+					url: ajaxurl,
+					dataType: 'json',
+					type: 'POST',
+					data: {
+						action: 'easy_wp_smtp_ajax',
+						task: 'pro_banner_dismiss',
+						nonce: easy_wp_smtp.nonce
+					}
+				} )
+					.always( function() {
+						$( '.easy-wp-smtp-pro-banner', app.pageHolder ).fadeOut( 'fast' );
+					} );
+			} );
+
+			// Dissmis educational notices for certain mailers.
+			$( '.js-easy-wp-smtp-mailer-notice-dismiss', app.settingsForm ).on( 'click', function( e ) {
+				e.preventDefault();
+
+				var $btn = $( this ),
+					$notice = $btn.parents( '.easy-wp-smtp-notice' );
+
+				if ( $btn.hasClass( 'disabled' ) ) {
+					return false;
+				}
+
+				$.ajax( {
+					url: ajaxurl,
+					dataType: 'json',
+					type: 'POST',
+					data: {
+						action: 'easy_wp_smtp_ajax',
+						nonce: easy_wp_smtp.nonce,
+						task: 'notice_dismiss',
+						notice: $notice.data( 'notice' ),
+						mailer: $notice.data( 'mailer' )
+					},
+					beforeSend: function() {
+						$btn.addClass( 'disabled' );
+					}
+				} )
+					.always( function() {
+						$notice.fadeOut( 'fast', function() {
+							$btn.removeClass( 'disabled' );
+						} );
+					} );
+			} );
+
 			// Show/hide debug output.
 			$( '.easy-wp-smtp-test-email-debug .easy-wp-smtp-error-log-toggle' ).on( 'click', function( e ) {
 				e.preventDefault();
@@ -212,6 +282,32 @@ EasyWPSMTP.Admin.Settings = EasyWPSMTP.Admin.Settings || ( function( document, w
 				);
 			} );
 
+			// Remove mailer connection.
+			$( '.js-easy-wp-smtp-provider-remove', app.settingsForm ).on( 'click', function() {
+				return confirm( easy_wp_smtp.text_provider_remove );
+			} );
+
+			// Copy input text to clipboard.
+			$( '.easy-wp-smtp-setting-copy', app.settingsForm ).on( 'click', function( e ) {
+				e.preventDefault();
+
+				var target = $( '#' + $( this ).data( 'source_id' ) ).get( 0 );
+
+				target.select();
+				document.execCommand( 'Copy' );
+
+				var $copyIcon = $( this ).find( 'svg:first-child' ),
+					$checkIcon = $( this ).find( 'svg:last-child' );
+
+				$copyIcon.hide();
+
+				$checkIcon
+					.show()
+					.fadeOut( 1000, 'swing', function() {
+						$copyIcon.fadeIn( 200 );
+					} );
+			} );
+
 			// Disable multiple click on the Email Test tab submit button and display a loader icon.
 			$( '.easy-wp-smtp-tab-tools-test #easy-wp-smtp-email-test-form' ).on( 'submit', function() {
 				var $button = $( this ).find( '.easy-wp-smtp-btn' );
@@ -224,6 +320,40 @@ EasyWPSMTP.Admin.Settings = EasyWPSMTP.Admin.Settings || ( function( document, w
 			$( '#easy-wp-smtp-setting-domain_check' ).on( 'change', function() {
 				$( '#easy-wp-smtp-setting-domain_check_allowed_domains, #easy-wp-smtp-setting-domain_check_do_not_send' ).prop( 'disabled', ! $( this ).is( ':checked' ) )
 			} );
+		},
+
+		education: {
+			upgradeMailer: function( $input ) {
+
+				$.alert( {
+					backgroundDismiss: true,
+					escapeKey: true,
+					animationBounce: 1,
+					type: 'blue',
+					closeIcon: true,
+					title: easy_wp_smtp.education.upgrade_title.replace( /%name%/g, $input.data('title') ),
+					icon: '"></i>' + easy_wp_smtp.education.upgrade_icon_lock + '<i class="',
+					content: easy_wp_smtp.education.upgrade_content.replace( /%name%/g, $input.data('title') ) + easy_wp_smtp.education.upgrade_bonus,
+					boxWidth: '550px',
+					onOpenBefore: function() {
+						this.$btnc.after( '<div class="easy-wp-smtp-already-purchased">' + easy_wp_smtp.education.upgrade_doc + '</div>' );
+						this.$body.addClass( 'easy-wp-smtp-upgrade-mailer-education-modal' );
+					},
+					buttons: {
+						confirm: {
+							text: easy_wp_smtp.education.upgrade_button,
+							btnClass: 'easy-wp-smtp-btn easy-wp-smtp-btn--green',
+							keys: [ 'enter' ],
+							action: function() {
+								var appendChar = /(\?)/.test( easy_wp_smtp.education.upgrade_url ) ? '&' : '?',
+									upgradeURL = easy_wp_smtp.education.upgrade_url + appendChar + 'utm_content=' + encodeURIComponent( $input.val() );
+
+								window.open( upgradeURL, '_blank' );
+							}
+						}
+					}
+				} );
+			}
 		},
 
 		/**

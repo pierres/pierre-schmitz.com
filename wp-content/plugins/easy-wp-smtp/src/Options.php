@@ -5,6 +5,8 @@ namespace EasyWPSMTP;
 use EasyWPSMTP\Helpers\Crypto;
 use EasyWPSMTP\Migrations\DeprecatedOptionsConverter;
 use EasyWPSMTP\Migrations\DeprecatedOptionsMigration;
+use EasyWPSMTP\Reports\Emails\Summary as SummaryReportEmail;
+use EasyWPSMTP\UsageTracking\UsageTracking;
 
 /**
  * Class Options to handle all options management.
@@ -44,6 +46,15 @@ class Options {
 			'user',
 			'pass',
 		],
+		'outlook'    => [
+			'client_id',
+			'client_secret',
+		],
+		'amazonses'  => [
+			'client_id',
+			'client_secret',
+			'region',
+		],
 		'mailgun'    => [
 			'api_key',
 			'domain',
@@ -60,6 +71,9 @@ class Options {
 		'sendlayer'  => [
 			'api_key',
 		],
+		'license'    => [
+			'key',
+		],
 	];
 
 	/**
@@ -73,7 +87,9 @@ class Options {
 		'sendlayer',
 		'smtpcom',
 		'sendinblue',
+		'amazonses',
 		'mailgun',
+		'outlook',
 		'smtp',
 	];
 
@@ -170,6 +186,7 @@ class Options {
 			],
 			'general' => [
 				'domain_check_allowed_domains' => wp_parse_url( get_site_url(), PHP_URL_HOST ),
+				SummaryReportEmail::SETTINGS_SLUG => ! is_multisite() ? false : true,
 			],
 		];
 	}
@@ -364,6 +381,10 @@ class Options {
 			case 'pass':
 				$value = $this->get_const_value( $group, $key, $value );
 				break;
+
+			case 'type':
+				$value = $group === 'license' ? 'lite' : '';
+				break;
 		}
 
 		return apply_filters( 'easy_wp_smtp_options_postprocess_key_defaults', $value, $group, $key );
@@ -462,6 +483,38 @@ class Options {
 
 				break;
 
+			case 'outlook':
+				switch ( $key ) {
+					case 'client_id':
+						/** @noinspection PhpUndefinedConstantInspection */
+						$return = $this->is_const_defined( $group, $key ) ? EasyWPSMTP_OUTLOOK_CLIENT_ID : $value;
+						break;
+					case 'client_secret':
+						/** @noinspection PhpUndefinedConstantInspection */
+						$return = $this->is_const_defined( $group, $key ) ? EasyWPSMTP_OUTLOOK_CLIENT_SECRET : $value;
+						break;
+				}
+
+				break;
+
+			case 'amazonses':
+				switch ( $key ) {
+					case 'client_id':
+						/** @noinspection PhpUndefinedConstantInspection */
+						$return = $this->is_const_defined( $group, $key ) ? EasyWPSMTP_AMAZONSES_CLIENT_ID : $value;
+						break;
+					case 'client_secret':
+						/** @noinspection PhpUndefinedConstantInspection */
+						$return = $this->is_const_defined( $group, $key ) ? EasyWPSMTP_AMAZONSES_CLIENT_SECRET : $value;
+						break;
+					case 'region':
+						/** @noinspection PhpUndefinedConstantInspection */
+						$return = $this->is_const_defined( $group, $key ) ? EasyWPSMTP_AMAZONSES_REGION : $value;
+						break;
+				}
+
+				break;
+
 			case 'mailgun':
 				switch ( $key ) {
 					case 'api_key':
@@ -508,11 +561,37 @@ class Options {
 
 				break;
 
+			case 'license':
+				switch ( $key ) {
+					case 'key':
+						/** @noinspection PhpUndefinedConstantInspection */
+						$return = $this->is_const_defined( $group, $key ) ? EasyWPSMTP_LICENSE_KEY : $value;
+						break;
+				}
+
+				break;
+
 			case 'general':
 				switch ( $key ) {
 					case 'do_not_send':
 						/** @noinspection PhpUndefinedConstantInspection */
 						$return = $this->is_const_defined( $group, $key ) ? EASY_WP_SMTP_DO_NOT_SEND : $value;
+						break;
+					case SummaryReportEmail::SETTINGS_SLUG:
+						/** No inspection comment @noinspection PhpUndefinedConstantInspection */
+						$return = $this->is_const_defined( $group, $key ) ?
+							$this->parse_boolean( EasyWPSMTP_SUMMARY_REPORT_EMAIL_DISABLED ) :
+							$value;
+						break;
+				}
+
+				break;
+
+			case 'debug_events':
+				switch ( $key ) {
+					case 'retention_period':
+						/** @noinspection PhpUndefinedConstantInspection */
+						$return = $this->is_const_defined( $group, $key ) ? intval( EasyWPSMTP_DEBUG_EVENTS_RETENTION_PERIOD ) : $value;
 						break;
 				}
 
@@ -620,6 +699,33 @@ class Options {
 
 				break;
 
+			case 'outlook':
+				switch ( $key ) {
+					case 'client_id':
+						$return = defined( 'EasyWPSMTP_OUTLOOK_CLIENT_ID' ) && EasyWPSMTP_OUTLOOK_CLIENT_ID;
+						break;
+					case 'client_secret':
+						$return = defined( 'EasyWPSMTP_OUTLOOK_CLIENT_SECRET' ) && EasyWPSMTP_OUTLOOK_CLIENT_SECRET;
+						break;
+				}
+
+				break;
+
+			case 'amazonses':
+				switch ( $key ) {
+					case 'client_id':
+						$return = defined( 'EasyWPSMTP_AMAZONSES_CLIENT_ID' ) && EasyWPSMTP_AMAZONSES_CLIENT_ID;
+						break;
+					case 'client_secret':
+						$return = defined( 'EasyWPSMTP_AMAZONSES_CLIENT_SECRET' ) && EasyWPSMTP_AMAZONSES_CLIENT_SECRET;
+						break;
+					case 'region':
+						$return = defined( 'EasyWPSMTP_AMAZONSES_REGION' ) && EasyWPSMTP_AMAZONSES_REGION;
+						break;
+				}
+
+				break;
+
 			case 'mailgun':
 				switch ( $key ) {
 					case 'api_key':
@@ -659,11 +765,23 @@ class Options {
 
 				break;
 
+			case 'license':
+				switch ( $key ) {
+					case 'key':
+						$return = defined( 'EasyWPSMTP_LICENSE_KEY' ) && EasyWPSMTP_LICENSE_KEY;
+						break;
+				}
+
+				break;
+
 			case 'general':
 				switch ( $key ) {
 					case 'do_not_send':
 						/** @noinspection PhpUndefinedConstantInspection */
 						$return = defined( 'EASY_WP_SMTP_DO_NOT_SEND' ) && EASY_WP_SMTP_DO_NOT_SEND;
+						break;
+					case SummaryReportEmail::SETTINGS_SLUG:
+						$return = defined( 'EasyWPSMTP_SUMMARY_REPORT_EMAIL_DISABLED' );
 						break;
 				}
 
@@ -786,7 +904,10 @@ class Options {
 							case 'am_notifications_hidden':
 							case 'email_delivery_errors_hidden':
 							case 'top_level_menu_hidden':
+							case 'dashboard_widget_hidden':
 							case 'uninstall':
+							case UsageTracking::SETTINGS_SLUG:
+							case SummaryReportEmail::SETTINGS_SLUG:
 								$options[ $group ][ $option_name ] = (bool) $option_value;
 								break;
 							case 'domain_check_allowed_domains':
@@ -841,10 +962,13 @@ class Options {
 					case 'host': // smtp.
 					case 'user': // smtp.
 					case 'encryption': // smtp.
-					case 'region': // mailgun.
+					case 'region': // mailgun/amazonses.
 					case 'api_key': // mailgun/sendinblue/smtpcom/sendlayer.
 					case 'domain': // mailgun/sendinblue.
 					case 'channel': // smtpcom.
+					case 'client_id': // outlook/amazonses.
+					case 'client_secret': // outlook/amazonses.
+					case 'auth_code': // outlook.
 						$options[ $mailer ][ $option_name ] = $this->is_const_defined( $mailer, $option_name ) ? '' : sanitize_text_field( $option_value );
 						break;
 					case 'port': // smtp.
@@ -867,6 +991,12 @@ class Options {
 								$options[ $mailer ][ $option_name ] = Crypto::encrypt( $option_value );
 							} catch ( \Exception $e ) {} // phpcs:ignore Generic.CodeAnalysis.EmptyStatement.DetectedCatch, Squiz.Commenting.EmptyCatchComment.Missing, Squiz.ControlStructures.ControlSignature.NewlineAfterOpenBrace
 						}
+						break;
+
+					case 'access_token': // outlook, is an array.
+					case 'user_details': // outlook, is an array.
+						// These options don't support constants.
+						$options[ $mailer ][ $option_name ] = $option_value;
 						break;
 				}
 			}
@@ -944,14 +1074,14 @@ class Options {
 	}
 
 	/**
-	 * Check whether the site is using Pepipost/SMTP as a mailer or not.
+	 * Check whether the site is using SMTP as a mailer or not.
 	 *
 	 * @since 2.0.0
 	 *
 	 * @return bool
 	 */
 	public function is_mailer_smtp() {
-		return apply_filters( 'easy_wp_smtp_options_is_mailer_smtp', in_array( $this->get( 'mail', 'mailer' ), array( 'pepipost', 'smtp' ), true ) );
+		return apply_filters( 'easy_wp_smtp_options_is_mailer_smtp', in_array( $this->get( 'mail', 'mailer' ), array( 'smtp' ), true ) );
 	}
 
 	/**

@@ -57,4 +57,13 @@ interface MailCatcherInterface {
 	 * @return bool
 	 */
 	public function is_test_email();
+
+	/**
+	 * Whether the current email is a Setup Wizard test email.
+	 *
+	 * @since 2.1.0
+	 *
+	 * @return bool
+	 */
+	public function is_setup_wizard_test_email();
 }

@@ -5,6 +5,7 @@ namespace EasyWPSMTP\Tasks;
 use ActionScheduler_Action;
 use ActionScheduler_DataController;
 use ActionScheduler_DBStore;
+use EasyWPSMTP\Tasks\Reports\SummaryEmailTask;
 
 /**
  * Class Tasks manages the tasks queue and provides API to work with it.
@@ -74,6 +75,7 @@ class Tasks {
 	public function get_tasks() {
 
 		$tasks = [
+			SummaryEmailTask::class,
 			DebugEventsCleanupTask::class,
 		];
 

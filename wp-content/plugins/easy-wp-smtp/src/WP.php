@@ -122,7 +122,7 @@ class WP {
 			$dismissible = $notice['is_dismissible'] ? 'is-dismissible' : '';
 			?>
 
-			<div class="notice easy-wp-smtp-notice <?php echo esc_attr( $notice['class'] ); ?> notice <?php echo esc_attr( $dismissible ); ?>">
+			<div class="notice <?php echo esc_attr( $notice['class'] ); ?> notice <?php echo esc_attr( $dismissible ); ?>">
 				<p>
 					<?php echo wp_kses_post( $notice['message'] ); ?>
 				</p>

@@ -163,6 +163,7 @@ abstract class OptionsAbstract implements OptionsInterface {
 				$notice = wp_kses(
 					$notice,
 					array(
+						'p'     => true,
 						'br'     => true,
 						'strong' => true,
 						'em'     => true,
@@ -488,6 +489,7 @@ abstract class OptionsAbstract implements OptionsInterface {
 
 	/**
 	 * Whether this mailer is disabled or not.
+	 * Used for displaying Pro mailers inside Lite plugin.
 	 *
 	 * @since 2.0.0
 	 *
@@ -521,17 +523,20 @@ abstract class OptionsAbstract implements OptionsInterface {
 		?>
 
 		<blockquote>
-			<?php
-			printf(
+			<p>
+				<?php
+				printf(
 				/* translators: %1$s - Provider name; %2$s - PHP version required by Provider; %3$s - current PHP version. */
-				esc_html__( '%1$s requires PHP %2$s to work and does not support your current PHP version %3$s. Please contact your host and request a PHP upgrade to the latest one.', 'easy-wp-smtp' ),
-				esc_html( $this->get_title() ),
-				esc_html( $this->php ),
-				esc_html( phpversion() )
-			);
-			?>
-			<br>
-			<?php esc_html_e( 'Meanwhile you can switch to some other mailers.', 'easy-wp-smtp' ); ?>
+					esc_html__( '%1$s requires PHP %2$s to work and does not support your current PHP version %3$s. Please contact your host and request a PHP upgrade to the latest one.', 'easy-wp-smtp' ),
+					esc_html( $this->get_title() ),
+					esc_html( $this->php ),
+					esc_html( phpversion() )
+				);
+				?>
+			</p>
+			<p>
+				<?php esc_html_e( 'Meanwhile you can switch to some other mailers.', 'easy-wp-smtp' ); ?>
+			</p>
 		</blockquote>
 
 		<?php
@@ -546,23 +551,25 @@ abstract class OptionsAbstract implements OptionsInterface {
 		?>
 
 		<blockquote>
-			<?php
-			printf(
-				wp_kses( /* translators: %s - Provider name */
-					__( '%s requires an SSL certificate, and so is not currently compatible with your site. Please contact your host to request a SSL certificate, or check out <a href="https://www.wpbeginner.com/wp-tutorials/how-to-add-ssl-and-https-in-wordpress/" target="_blank">WPBeginner\'s tutorial on how to set up SSL</a>.', 'easy-wp-smtp' ),
-					[
-						'a' => [
-							'href'   => [],
-							'target' => [],
-						],
-					]
-				),
-				esc_html( $this->get_title() )
-			);
-			?>
-			<br>
-			<br>
-			<?php esc_html_e( 'If you\'d prefer not to set up SSL, or need an SMTP solution in the meantime, please select a different mailer option.', 'easy-wp-smtp' ); ?>
+			<p>
+				<?php
+				printf(
+					wp_kses( /* translators: %s - Provider name */
+						__( '%s requires an SSL certificate, and so is not currently compatible with your site. Please contact your host to request a SSL certificate, or check out <a href="https://www.wpbeginner.com/wp-tutorials/how-to-add-ssl-and-https-in-wordpress/" target="_blank">WPBeginner\'s tutorial on how to set up SSL</a>.', 'easy-wp-smtp' ),
+						[
+							'a' => [
+								'href'   => [],
+								'target' => [],
+							],
+						]
+					),
+					esc_html( $this->get_title() )
+				);
+				?>
+			</p>
+			<p>
+				<?php esc_html_e( 'If you\'d prefer not to set up SSL, or need an SMTP solution in the meantime, please select a different mailer option.', 'easy-wp-smtp' ); ?>
+			</p>
 		</blockquote>
 
 		<?php

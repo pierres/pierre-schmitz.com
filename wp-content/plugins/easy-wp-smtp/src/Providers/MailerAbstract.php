@@ -412,7 +412,7 @@ abstract class MailerAbstract implements MailerInterface {
 	}
 
 	/**
-	 * This method is relevant to SMTP and Pepipost.
+	 * This method is relevant to SMTP.
 	 * All other custom mailers should override it with own information.
 	 *
 	 * @since 2.0.0

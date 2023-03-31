@@ -14,6 +14,27 @@ use WP_Error;
 class Helpers {
 
 	/**
+	 * Check if the current active mailer has email send confirmation functionality.
+	 *
+	 * @since 2.1.0
+	 *
+	 * @return bool
+	 */
+	public static function mailer_without_send_confirmation() {
+
+		return ! in_array(
+			Options::init()->get( 'mail', 'mailer' ),
+			[
+				'sendlayer',
+				'smtpcom',
+				'sendinblue',
+				'mailgun',
+			],
+			true
+		);
+	}
+
+	/**
 	 * Include mbstring polyfill.
 	 *
 	 * @since 2.0.0

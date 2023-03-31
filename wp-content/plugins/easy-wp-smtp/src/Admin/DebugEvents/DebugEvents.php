@@ -26,7 +26,7 @@ class DebugEvents {
 		add_action( 'wp_ajax_easy_wp_smtp_delete_all_debug_events', [ $this, 'process_ajax_delete_all_debug_events' ] );
 
 		// Initialize screen options for the Debug Events page.
-		add_action( 'load-easy-wp-smtp_page_easy-wp-smtp-tools', [ $this, 'screen_options' ] );
+		add_action( 'load-' . easy_wp_smtp()->get_admin()->get_admin_page_hook( 'tools' ), [ $this, 'screen_options' ] );
 		add_filter( 'set-screen-option', [ $this, 'set_screen_options' ], 10, 3 );
 		add_filter( 'set_screen_option_easy_wp_smtp_debug_events_per_page', [ $this, 'set_screen_options' ], 10, 3 );
 
@@ -258,7 +258,7 @@ class DebugEvents {
 
 		if (
 			! is_object( $screen ) ||
-			strpos( $screen->id, 'easy-wp-smtp_page_easy-wp-smtp-tools' ) === false ||
+			strpos( $screen->id, easy_wp_smtp()->get_admin()->get_admin_page_hook( 'tools' ) ) === false ||
 			// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			! isset( $_GET['tab'] ) || $_GET['tab'] !== 'debug-events'
 		) {

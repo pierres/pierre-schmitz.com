@@ -3,11 +3,16 @@
 namespace EasyWPSMTP;
 
 use EasyWPSMTP\Admin\Area as AdminArea;
+use EasyWPSMTP\Admin\DashboardWidget;
 use EasyWPSMTP\Admin\DebugEvents\DebugEvents;
 use EasyWPSMTP\Admin\Notifications;
 use EasyWPSMTP\Migrations\Migrations;
 use EasyWPSMTP\Providers\Loader as ProvidersLoader;
 use EasyWPSMTP\Tasks\Tasks;
+use EasyWPSMTP\Tasks\Meta;
+use EasyWPSMTP\UsageTracking\UsageTracking;
+use EasyWPSMTP\Compatibility\Compatibility;
+use EasyWPSMTP\Reports\Reports;
 use Exception;
 use ReflectionFunction;
 
@@ -46,6 +51,15 @@ class Core {
 	public $plugin_path;
 
 	/**
+	 * Shortcut to get access to Pro functionality using easy_wp_smtp()->pro->example().
+	 *
+	 * @since 2.1.0
+	 *
+	 * @var \EasyWPSMTP\Pro\Pro
+	 */
+	public $pro;
+
+	/**
 	 * Core constructor.
 	 *
 	 * @since 2.0.0
@@ -56,7 +70,7 @@ class Core {
 		$this->assets_url  = $this->plugin_url . '/assets';
 		$this->plugin_path = rtrim( plugin_dir_path( __DIR__ ), '/\\' );
 
-		if ( version_compare( phpversion(), '5.6', '<' ) ) {
+		if ( $this->is_not_loadable() ) {
 			add_action( 'admin_notices', 'easy_wp_smtp_insecure_php_version_notice' );
 
 			return;
@@ -68,6 +82,27 @@ class Core {
 	}
 
 	/**
+	 * Currently used for Pro version only.
+	 *
+	 * @since 2.1.0
+	 *
+	 * @return bool
+	 */
+	protected function is_not_loadable() {
+
+		// Check the Pro.
+		if (
+			is_readable( $this->plugin_path . '/src/Pro/Pro.php' ) &&
+			! $this->is_pro_allowed()
+		) {
+			// So there is a Pro version, but its PHP version check failed.
+			return true;
+		}
+
+		return false;
+	}
+
+	/**
 	 * Assign all hooks to proper places.
 	 *
 	 * @since 2.0.0
@@ -76,6 +111,9 @@ class Core {
 
 		// Activation hook.
 		register_activation_hook( EasyWPSMTP_PLUGIN_FILE, [ $this, 'activate' ] );
+
+		// Load Pro if available.
+		add_action( 'plugins_loaded', [ $this, 'get_pro' ] );
 
 		// Redefine PHPMailer.
 		add_action( 'plugins_loaded', [ $this, 'get_processor' ] );
@@ -90,7 +128,13 @@ class Core {
 		add_action( 'init', [ $this, 'get_tasks' ], 5 );
 
 		add_action( 'plugins_loaded', [ $this, 'get_migrations' ] );
+		add_action( 'plugins_loaded', [ $this, 'get_usage_tracking' ] );
 		add_action( 'plugins_loaded', [ $this, 'get_notifications' ] );
+		add_action( 'plugins_loaded', [ $this, 'get_connect' ], 15 );
+		add_action( 'plugins_loaded', [ $this, 'get_compatibility' ], 0 );
+		add_action( 'plugins_loaded', [ $this, 'get_dashboard_widget' ], 20 );
+		add_action( 'plugins_loaded', [ $this, 'get_reports' ] );
+		add_action( 'plugins_loaded', [ $this, 'get_db_repair' ] );
 		add_action( 'plugins_loaded', [ $this, 'get_connections_manager' ], 20 );
 		add_action( 'plugins_loaded', [ $this, 'get_wp_mail_initiator' ] );
 	}
@@ -118,6 +162,7 @@ class Core {
 		// In admin area, regardless of AJAX or not AJAX request.
 		if ( is_admin() ) {
 			$this->get_admin();
+			$this->get_site_health()->init();
 
 			// Register Debug Event hooks.
 			( new DebugEvents() )->hooks();
@@ -128,6 +173,48 @@ class Core {
 			add_action( 'admin_notices', array( '\EasyWPSMTP\WP', 'display_admin_notices' ) );
 			add_action( 'admin_notices', array( $this, 'display_general_notices' ) );
 		}
+	}
+
+	/**
+	 * Whether the Pro part of the plugin is allowed to be loaded.
+	 *
+	 * @since 2.1.0
+	 *
+	 * @return bool
+	 */
+	protected function is_pro_allowed() {
+
+		$is_allowed = true;
+
+		if ( ! is_readable( $this->plugin_path . '/src/Pro/Pro.php' ) ) {
+			$is_allowed = false;
+		}
+
+		if ( version_compare( phpversion(), '5.6', '<' ) ) {
+			$is_allowed = false;
+		}
+
+		return apply_filters( 'easy_wp_smtp_core_is_pro_allowed', $is_allowed );
+	}
+
+	/**
+	 * Get/Load the Pro code of the plugin if it exists.
+	 *
+	 * @since 2.1.0
+	 *
+	 * @return \EasyWPSMTP\Pro\Pro
+	 */
+	public function get_pro() {
+
+		if ( ! $this->is_pro_allowed() ) {
+			return $this->pro;
+		}
+
+		if ( ! $this->is_pro() ) {
+			$this->pro = new \EasyWPSMTP\Pro\Pro();
+		}
+
+		return $this->pro;
 	}
 
 	/**
@@ -205,7 +292,10 @@ class Core {
 		// Action Scheduler requires a special early loading procedure.
 		$this->load_action_scheduler();
 
-		$files = (array) apply_filters( 'easy_wp_smtp_core_init_early_include_files', [] );
+		// Load Pro specific files early.
+		$pro_files = $this->is_pro_allowed() ? \EasyWPSMTP\Pro\Pro::PLUGGABLE_FILES : array();
+
+		$files = (array) apply_filters( 'easy_wp_smtp_core_init_early_include_files', $pro_files );
 
 		foreach ( $files as $file ) {
 			$path = $this->plugin_path . '/' . $file;
@@ -303,6 +393,24 @@ class Core {
 		}
 
 		return $providers;
+	}
+
+	/**
+	 * Get the plugin's WP Site Health object.
+	 *
+	 * @since 2.1.0
+	 *
+	 * @return SiteHealth
+	 */
+	public function get_site_health() {
+
+		static $site_health;
+
+		if ( ! isset( $site_health ) ) {
+			$site_health = apply_filters( 'easy_wp_smtp_core_get_site_health', new SiteHealth() );
+		}
+
+		return $site_health;
 	}
 
 	/**
@@ -499,6 +607,31 @@ class Core {
 	}
 
 	/**
+	 * Check whether we are working with a new plugin install.
+	 *
+	 * @since 2.1.0
+	 *
+	 * @return bool
+	 */
+	protected function is_new_install() {
+
+		/*
+		 * No previously installed 0.*.
+		 * 'easy_wp_smtp_initial_version' option appeared in 1.3.0. So we make sure it exists.
+		 * No previous plugin upgrades.
+		 */
+		if (
+			! get_option( 'mailer', false ) &&
+			get_option( 'easy_wp_smtp_initial_version', false ) &&
+			version_compare( EasyWPSMTP_PLUGIN_VERSION, get_option( 'easy_wp_smtp_initial_version' ), '=' )
+		) {
+			return true;
+		}
+
+		return false;
+	}
+
+	/**
 	 * Detect if there are plugins activated that will cause a conflict.
 	 *
 	 * @since 2.0.0
@@ -572,6 +705,93 @@ class Core {
 		 * @since 2.0.0
 		 */
 		add_option( 'easy_wp_smtp_activated_time', time(), '', false );
+
+		/**
+		 * Store the timestamp of the first plugin activation by license type.
+		 *
+		 * @since 2.1.0
+		 */
+		$license_type = is_readable( $this->plugin_path . '/src/Pro/Pro.php' ) ? 'pro' : 'lite';
+		$activated    = get_option( 'easy_wp_smtp_activated', [] );
+
+		if ( empty( $activated[ $license_type ] ) ) {
+			$activated[ $license_type ] = time();
+			update_option( 'easy_wp_smtp_activated', $activated );
+		}
+
+		// Add transient to trigger redirect to the Setup Wizard.
+		set_transient( 'easy_wp_smtp_activation_redirect', true, 30 );
+	}
+
+	/**
+	 * Whether this is a Pro version of a plugin.
+	 *
+	 * @since 2.1.0
+	 *
+	 * @return bool
+	 */
+	public function is_pro() {
+
+		return apply_filters( 'easy_wp_smtp_core_is_pro', ! empty( $this->pro ) );
+	}
+
+	/**
+	 * Get the current license type.
+	 *
+	 * @since 2.1.0
+	 *
+	 * @return string Default value: lite.
+	 */
+	public function get_license_type() {
+
+		$type = Options::init()->get( 'license', 'type' );
+
+		if ( empty( $type ) ) {
+			$type = 'lite';
+		}
+
+		return strtolower( $type );
+	}
+
+	/**
+	 * Get the current license key.
+	 *
+	 * @since 2.1.0
+	 *
+	 * @return string
+	 */
+	public function get_license_key() {
+
+		$key = Options::init()->get( 'license', 'key' );
+
+		if ( empty( $key ) ) {
+			$key = '';
+		}
+
+		return $key;
+	}
+
+	/**
+	 * Upgrade link used within the various admin pages.
+	 *
+	 * @since 2.1.0
+	 *
+	 * @param array|string $utm Array of UTM params, or if string provided - utm_content URL parameter.
+	 *
+	 * @return string
+	 */
+	public function get_upgrade_link( $utm ) {
+
+		$url = $this->get_utm_url( 'https://easywpsmtp.com/lite-upgrade/', $utm );
+
+		/**
+		 * Filters upgrade link.
+		 *
+		 * @since 2.1.0
+		 *
+		 * @param string $url Upgrade link.
+		 */
+		return apply_filters( 'easy_wp_smtp_core_get_upgrade_link', $url );
 	}
 
 	/**
@@ -589,7 +809,7 @@ class Core {
 		// Defaults.
 		$source   = 'WordPress';
 		$medium   = 'plugin-settings';
-		$campaign = 'liteplugin';
+		$campaign = $this->is_pro() ? 'plugin' : 'liteplugin';
 		$content  = 'general';
 
 		if ( is_array( $utm ) ) {
@@ -644,6 +864,23 @@ class Core {
 	public function load_action_scheduler() {
 
 		require_once $this->plugin_path . '/vendor/woocommerce/action-scheduler/action-scheduler.php';
+	}
+
+	/**
+	 * Get the list of all custom DB tables that should be present in the DB.
+	 *
+	 * @since 2.1.0
+	 *
+	 * @return array List of table names.
+	 */
+	public function get_custom_db_tables() {
+
+		$tables = [
+			Meta::get_table_name(),
+			DebugEvents::get_table_name(),
+		];
+
+		return apply_filters( 'easy_wp_smtp_core_get_custom_db_tables', $tables );
 	}
 
 	/**
@@ -722,6 +959,28 @@ class Core {
 	}
 
 	/**
+	 * Load the plugin usage tracking.
+	 *
+	 * @since 2.1.0
+	 *
+	 * @return UsageTracking
+	 */
+	public function get_usage_tracking() {
+
+		static $usage_tracking;
+
+		if ( ! isset( $usage_tracking ) ) {
+			$usage_tracking = apply_filters( 'easy_wp_smtp_core_get_usage_tracking', new UsageTracking() );
+
+			if ( method_exists( $usage_tracking, 'load' ) ) {
+				add_action( 'after_setup_theme', [ $usage_tracking, 'load' ] );
+			}
+		}
+
+		return $usage_tracking;
+	}
+
+	/**
 	 * Load the plugin admin notifications functionality and initializes it.
 	 *
 	 * @since 2.0.0
@@ -775,6 +1034,147 @@ class Core {
 		}
 
 		return '<img src="' . esc_url( $this->plugin_url . '/assets/images/loaders/' . $svg_name . '.svg' ) . '" alt="' . esc_attr__( 'Loading', 'easy-wp-smtp' ) . '" class="easy-wp-smtp-loading easy-wp-smtp-loading-' . $size . '">';
+	}
+
+	/**
+	 * Initialize the Connect functionality.
+	 * This has to execute after pro was loaded, since we need check for plugin license type (if pro or not).
+	 * That's why it's hooked to the same WP hook (`plugins_loaded`) as `get_pro` with lower priority.
+	 *
+	 * @since 2.1.0
+	 */
+	public function get_connect() {
+
+		static $connect;
+
+		if ( ! isset( $connect ) && ! $this->is_pro() ) {
+			$connect = apply_filters( 'easy_wp_smtp_core_get_connect', new Connect() );
+
+			if ( method_exists( $connect, 'hooks' ) ) {
+				$connect->hooks();
+			}
+		}
+
+		return $connect;
+	}
+
+	/**
+	 * Load the plugin compatibility functionality and initializes it.
+	 *
+	 * @since 2.1.0
+	 *
+	 * @return Compatibility
+	 */
+	public function get_compatibility() {
+
+		static $compatibility;
+
+		if ( ! isset( $compatibility ) ) {
+
+			/**
+			 * Filters compatibility instance.
+			 *
+			 * @since 2.1.0
+			 *
+			 * @param \EasyWPSMTP\Compatibility\Compatibility  $compatibility Compatibility instance.
+			 */
+			$compatibility = apply_filters( 'easy_wp_smtp_core_get_compatibility', new Compatibility() );
+
+			if ( method_exists( $compatibility, 'init' ) ) {
+				$compatibility->init();
+			}
+		}
+
+		return $compatibility;
+	}
+
+	/**
+	 * Get the Dashboard Widget object (lite or pro version).
+	 *
+	 * @since 2.1.0
+	 *
+	 * @return DashboardWidget
+	 */
+	public function get_dashboard_widget() {
+
+		static $dashboard_widget;
+
+		if ( ! isset( $dashboard_widget ) ) {
+
+			/**
+			 * Filter the dashboard widget class name.
+			 *
+			 * @since 2.1.0
+			 *
+			 * @param DashboardWidget $class_name The dashboard widget class name to be instantiated.
+			 */
+			$class_name       = apply_filters( 'easy_wp_smtp_core_get_dashboard_widget', DashboardWidget::class );
+			$dashboard_widget = new $class_name();
+		}
+
+		return $dashboard_widget;
+	}
+
+	/**
+	 * Get the reports object (lite or pro version).
+	 *
+	 * @since 2.1.0
+	 *
+	 * @return Reports
+	 */
+	public function get_reports() {
+
+		static $reports;
+
+		if ( ! isset( $reports ) ) {
+
+			/**
+			 * Filter the reports class name.
+			 *
+			 * @since 2.1.0
+			 *
+			 * @param Reports $class_name The reports class name to be instantiated.
+			 */
+			$class_name = apply_filters( 'easy_wp_smtp_core_get_reports', Reports::class );
+			$reports    = new $class_name();
+
+			if ( method_exists( $reports, 'init' ) ) {
+				$reports->init();
+			}
+		}
+
+		return $reports;
+	}
+
+	/**
+	 * Get the DBRepair object (lite or pro version).
+	 *
+	 * @since 2.1.0
+	 *
+	 * @return DBRepair
+	 */
+	public function get_db_repair() {
+
+		static $db_repair;
+
+		if ( ! isset( $db_repair ) ) {
+
+			/**
+			 * Filter the DBRepair class name.
+			 *
+			 * @since 2.1.0
+			 *
+			 * @param DBRepair $class_name The reports class name to be instantiated.
+			 */
+			$class_name = apply_filters( 'easy_wp_smtp_core_get_db_repair', DBRepair::class );
+			$db_repair  = new $class_name();
+
+			if ( method_exists( $db_repair, 'hooks' ) ) {
+				$db_repair->hooks();
+			}
+		}
+
+		return $db_repair;
 	}
 
 	/**

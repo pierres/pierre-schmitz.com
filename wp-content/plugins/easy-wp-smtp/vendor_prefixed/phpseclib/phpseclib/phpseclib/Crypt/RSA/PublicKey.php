@@ -26,7 +26,7 @@ use EasyWPSMTP\Vendor\phpseclib3\Math\BigInteger;
  *
  * @author  Jim Wigginton <terrafrost@php.net>
  */
-class PublicKey extends \EasyWPSMTP\Vendor\phpseclib3\Crypt\RSA implements \EasyWPSMTP\Vendor\phpseclib3\Crypt\Common\PublicKey
+final class PublicKey extends \EasyWPSMTP\Vendor\phpseclib3\Crypt\RSA implements \EasyWPSMTP\Vendor\phpseclib3\Crypt\Common\PublicKey
 {
     use Common\Traits\Fingerprint;
     /**

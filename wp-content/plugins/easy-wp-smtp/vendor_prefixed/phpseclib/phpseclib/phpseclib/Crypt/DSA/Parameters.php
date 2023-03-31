@@ -16,7 +16,7 @@ use EasyWPSMTP\Vendor\phpseclib3\Crypt\DSA;
  *
  * @author  Jim Wigginton <terrafrost@php.net>
  */
-class Parameters extends \EasyWPSMTP\Vendor\phpseclib3\Crypt\DSA
+final class Parameters extends \EasyWPSMTP\Vendor\phpseclib3\Crypt\DSA
 {
     /**
      * Returns the parameters
