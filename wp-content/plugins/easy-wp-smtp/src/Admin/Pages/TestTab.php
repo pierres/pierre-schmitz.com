@@ -362,6 +362,12 @@ class TestTab extends PageAbstract {
 			}
 		}
 
+		$headers = [ 'X-Mailer-Type:EasyWPSMTP/Admin/Test' ];
+
+		if ( $is_html ) {
+			$headers[] = 'Content-Type: text/html';
+		}
+
 		// Clear debug before send test email.
 		Debug::clear();
 
@@ -376,9 +382,7 @@ class TestTab extends PageAbstract {
 			$to,
 			$subject,
 			$this->get_email_message( $is_html ),
-			array(
-				'X-Mailer-Type:EasyWPSMTP/Admin/Test',
-			)
+			$headers
 		);
 
 		$smtp_debug = ob_get_clean();

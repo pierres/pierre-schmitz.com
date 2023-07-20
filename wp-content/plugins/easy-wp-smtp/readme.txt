@@ -4,7 +4,7 @@ Tags: mail, wordpress smtp, phpmailer, smtp, wp_mail, email, gmail, outgoing mai
 Requires at least: 5.2
 Tested up to: 6.2
 Requires PHP: 5.6
-Stable tag: 2.1.0
+Stable tag: 2.1.2
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -203,6 +203,11 @@ And we will try to help out as soon as possible.
 6. Debug Events page
 
 == Changelog ==
+
+= 2.1.2 =
+* Improved notifications formatting and styles.
+* Sendinblue rebranded to Brevo.
+* Explicitly set "Content-Type" header for the HTML test email.
 
 = 2.1.0 =
 * Added Setup Wizard.

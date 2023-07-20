@@ -292,7 +292,7 @@ class Mailer extends MailerAbstract {
 			$response = $api->get_smtp_client()->sendTransacEmail( $this->get_body() );
 
 			DebugEvents::add_debug(
-				esc_html__( 'An email request was sent to the Sendinblue API.', 'easy-wp-smtp' )
+				esc_html__( 'An email request was sent to the Brevo API.', 'easy-wp-smtp' )
 			);
 
 			$this->process_response( $response );
