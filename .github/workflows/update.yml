@@ -19,7 +19,7 @@ jobs:
       - name: Update WordPress and dependencies
         run: just update
       - name: Commit updates
-        uses: stefanzweifel/git-auto-commit-action@v4
+        uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: Update WordPress
           commit_user_name: Maintenance Bob
